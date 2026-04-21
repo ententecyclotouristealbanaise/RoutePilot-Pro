@@ -86,6 +86,10 @@
     .search-input{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;transition:border-color .15s}
     .search-input:focus{border-color:var(--accent)}
     .search-input::placeholder{color:var(--muted)}
+    .inline-suggest{margin-top:7px;max-height:220px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 22px rgba(0,0,0,.26)}
+    .inline-suggest-item{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text);padding:9px 11px;font-size:.8rem;cursor:pointer;border-bottom:1px solid var(--border)}
+    .inline-suggest-item:last-child{border-bottom:none}
+    .inline-suggest-item:hover{background:var(--card2)}
     .btn-add{border:none;cursor:pointer;padding:9px 16px;border-radius:var(--rs);color:#fff;font-size:.9rem;font-weight:700;white-space:nowrap;font-family:'Outfit',sans-serif}
     .dep-display{font-size:.88rem;color:var(--text);font-weight:500;margin-top:8px}
     .dep-display.empty{color:var(--muted)}
@@ -109,6 +113,13 @@
     /* MAP TAB */
     #map-tab{position:relative}
     #map{position:absolute;top:0;left:0;right:0;bottom:0}
+    .map-search{position:absolute;top:10px;left:10px;z-index:1100;width:min(420px,calc(100vw - 84px))}
+    .map-search input{width:100%;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:10px 12px;font-size:.85rem;outline:none;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+    .map-search input:focus{border-color:var(--accent)}
+    .map-suggest{margin-top:6px;max-height:240px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 24px rgba(0,0,0,.32)}
+    .map-suggest-item{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text);padding:10px 12px;font-size:.82rem;cursor:pointer;border-bottom:1px solid var(--border)}
+    .map-suggest-item:last-child{border-bottom:none}
+    .map-suggest-item:hover{background:var(--card2)}
     .map-toolbar{position:absolute;top:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:7px}
     .map-btn{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
     .map-btn.active{background:#0d6efd;border-color:#0d6efd;color:#fff}
@@ -191,6 +202,39 @@
       .tour-card,.action-btn,.tool-btn{transition:none !important}
       .splash-screen.hide{animation:none !important;opacity:0;visibility:hidden}
     }
+
+    @media (min-width: 768px){
+      .home-header{padding:44px 32px 18px}
+      .home-header h1{font-size:2.25rem}
+      .home-header p{font-size:.95rem}
+      .home-body{padding:20px 28px 118px}
+      .home-tools{gap:10px}
+      .tool-btn{font-size:.84rem;padding:12px 14px}
+      .editor-header{padding:26px 22px 14px}
+      .tab{font-size:.9rem;padding:13px}
+      #list-tab{padding:18px 20px 132px}
+      .field-group{padding:16px}
+      .route-stat .v{font-size:1.08rem}
+      .stop-item{padding:13px 14px}
+      .popup{max-width:640px}
+      .action-bar{left:50%;transform:translateX(-50%);max-width:760px;border-radius:14px 14px 0 0}
+    }
+
+    @media (min-width: 1100px){
+      .theme-toggle{right:22px;top:20px}
+      .home-header,.home-body,.editor-header,.tab-bar,#list-tab{width:min(1120px,94vw);margin-left:auto;margin-right:auto}
+      .home-header{border-radius:0 0 16px 16px}
+      #list-tab{display:grid;grid-template-columns:1fr 1fr;align-content:start;column-gap:14px}
+      #list-tab .field-group:nth-child(1),
+      #list-tab .field-group:nth-child(2),
+      #list-tab .stops-header,
+      #list-tab #stops-list,
+      #list-tab #route-stats{grid-column:1 / span 2}
+      #stops-list{display:grid !important;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px !important}
+      .tour-card{margin-bottom:12px}
+      #map-tab{border-left:1px solid var(--border);border-right:1px solid var(--border);width:min(1120px,94vw);margin:0 auto}
+      .action-bar{max-width:900px}
+    }
   </style>
 </head>
 <body>
@@ -266,18 +310,20 @@
     <div class="field-group">
       <div class="field-label">🚀 Point de départ</div>
       <div class="search-row">
-        <input type="text" class="search-input" id="departure-input" placeholder="Ex : Lamballe…" onkeydown="if(event.key==='Enter')setDeparture()">
+        <input type="text" class="search-input" id="departure-input" placeholder="Ex : Lamballe…" oninput="onListSearchInput('departure')" onkeydown="onListInputKeydown('departure', event)">
         <button class="btn-add btn btn-primary" onclick="setDeparture()">OK</button>
       </div>
+      <div id="departure-suggest" class="inline-suggest" style="display:none"></div>
       <div id="dep-display" class="dep-display empty">Aucun départ défini</div>
     </div>
 
     <div class="field-group">
       <div class="field-label">➕ Ajouter une étape</div>
       <div class="search-row">
-        <input type="text" class="search-input" id="stop-input" placeholder="Nom de la ville…" onkeydown="if(event.key==='Enter')addStopBySearch()">
+        <input type="text" class="search-input" id="stop-input" placeholder="Nom de la ville…" oninput="onListSearchInput('stop')" onkeydown="onListInputKeydown('stop', event)">
         <button class="btn-add btn btn-primary" onclick="addStopBySearch()">Ajouter</button>
       </div>
+      <div id="stop-suggest" class="inline-suggest" style="display:none"></div>
       <div style="margin-top:7px;font-size:.75rem;color:var(--muted)">💡 Ou passez en <b style="color:var(--accent)">🗺️ Carte</b> → Mode ajout pour cliquer sur la carte</div>
     </div>
 
@@ -315,8 +361,13 @@
   <!-- MAP TAB -->
   <div id="map-tab" class="tab-content">
     <div id="map"></div>
+    <div class="map-search" id="map-search-wrap">
+      <input type="text" id="map-search-input" placeholder="Rechercher une adresse..." oninput="onMapSearchInput()" onkeydown="onMapSearchKeydown(event)">
+      <div id="map-search-suggest" class="map-suggest" style="display:none"></div>
+    </div>
     <div class="map-toolbar">
       <button class="map-btn" id="add-mode-btn" onclick="toggleAddMode()">📍 Mode ajout</button>
+      <button class="map-btn" id="remove-mode-btn" onclick="toggleRemoveMode()">🧹 Mode suppression</button>
       <button class="map-btn" onclick="fitMapBounds()">🎯 Tout voir</button>
     </div>
   </div>
@@ -431,11 +482,13 @@
 
 <script>
 // ═══════════ STATE ═══════════
-const S = { tours:[], current:null, map:null, markers:[], polyline:null, addMode:false, pendingLoc:null, routeReqId:0 };
+const S = { tours:[], current:null, map:null, markers:[], polyline:null, addMode:false, removeMode:false, pendingLoc:null, routeReqId:0, mapSearchResults:[], listSearchResults:{departure:[],stop:[]} };
 const STORAGE_KEY = 'mt_v2';
 const THEME_KEY = 'rp_theme_v1';
 const ONBOARD_KEY = 'rp_onboard_done_v1';
 const DEFAULT_OPTIONS = { returnToStart:false, avoidMotorways:false };
+let mapSearchTimer = null;
+let listSearchTimer = null;
 let pendingImportMode = 'merge';
 let pendingImportBatch = null;
 let pendingImportFileName = '';
@@ -730,6 +783,148 @@ async function reverseGeocode(lat, lng) {
   return { name, lat, lng };
 }
 
+async function searchAddressSuggestions(query) {
+  const q = encodeURIComponent(query);
+  const url = `${GEO_BASE}/search?format=jsonv2&addressdetails=1&limit=7&countrycodes=fr&accept-language=fr&q=${q}`;
+  const data = await fetchJson(url);
+  if (!Array.isArray(data)) return [];
+  return data
+    .map(x => ({
+      name: pickDisplayName(x, query),
+      label: String(x.display_name || x.name || query),
+      lat: Number(x.lat),
+      lng: Number(x.lon)
+    }))
+    .filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lng));
+}
+
+function clearMapSearchSuggestions() {
+  S.mapSearchResults = [];
+  const box = document.getElementById('map-search-suggest');
+  if (!box) return;
+  box.innerHTML = '';
+  box.style.display = 'none';
+}
+
+function renderMapSearchSuggestions() {
+  const box = document.getElementById('map-search-suggest');
+  if (!box) return;
+  if (!S.mapSearchResults.length) {
+    box.innerHTML = '';
+    box.style.display = 'none';
+    return;
+  }
+  box.innerHTML = S.mapSearchResults.map((r, i) =>
+    `<button class="map-suggest-item" onclick="selectMapSuggestion(${i})">${esc(r.label)}</button>`
+  ).join('');
+  box.style.display = 'block';
+}
+
+async function onMapSearchInput() {
+  const input = document.getElementById('map-search-input');
+  if (!input) return;
+  const q = input.value.trim();
+  if (q.length < 3) { clearMapSearchSuggestions(); return; }
+
+  clearTimeout(mapSearchTimer);
+  mapSearchTimer = setTimeout(async () => {
+    const results = await searchAddressSuggestions(q);
+    if (input.value.trim() !== q) return;
+    S.mapSearchResults = results;
+    renderMapSearchSuggestions();
+  }, 260);
+}
+
+function onMapSearchKeydown(e) {
+  if (e.key === 'Enter' && S.mapSearchResults.length) {
+    e.preventDefault();
+    selectMapSuggestion(0);
+  }
+  if (e.key === 'Escape') clearMapSearchSuggestions();
+}
+
+function clearListSuggestions(kind) {
+  S.listSearchResults[kind] = [];
+  const box = document.getElementById(kind + '-suggest');
+  if (!box) return;
+  box.innerHTML = '';
+  box.style.display = 'none';
+}
+
+function renderListSuggestions(kind) {
+  const box = document.getElementById(kind + '-suggest');
+  if (!box) return;
+  const items = S.listSearchResults[kind] || [];
+  if (!items.length) {
+    box.innerHTML = '';
+    box.style.display = 'none';
+    return;
+  }
+  box.innerHTML = items.map((r, i) =>
+    `<button class="inline-suggest-item" onclick="selectListSuggestion('${kind}', ${i})">${esc(r.label)}</button>`
+  ).join('');
+  box.style.display = 'block';
+}
+
+async function onListSearchInput(kind) {
+  const input = document.getElementById(kind + '-input');
+  if (!input) return;
+  const q = input.value.trim();
+  if (q.length < 3) { clearListSuggestions(kind); return; }
+
+  clearTimeout(listSearchTimer);
+  listSearchTimer = setTimeout(async () => {
+    const results = await searchAddressSuggestions(q);
+    if (input.value.trim() !== q) return;
+    S.listSearchResults[kind] = results;
+    renderListSuggestions(kind);
+  }, 240);
+}
+
+function selectListSuggestion(kind, idx) {
+  const sel = (S.listSearchResults[kind] || [])[idx];
+  if (!sel) return;
+  const input = document.getElementById(kind + '-input');
+  if (input) input.value = sel.label;
+
+  if (kind === 'departure') {
+    setDepartureFromLoc(sel);
+    return;
+  }
+  addStop(sel);
+  if (input) input.value = '';
+  clearListSuggestions('stop');
+}
+
+function onListInputKeydown(kind, e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if ((S.listSearchResults[kind] || []).length) {
+      selectListSuggestion(kind, 0);
+      return;
+    }
+    if (kind === 'departure') setDeparture();
+    if (kind === 'stop') addStopBySearch();
+  }
+  if (e.key === 'Escape') clearListSuggestions(kind);
+}
+
+function selectMapSuggestion(idx) {
+  const sel = S.mapSearchResults[idx];
+  if (!sel) return;
+  clearMapSearchSuggestions();
+
+  const input = document.getElementById('map-search-input');
+  if (input) input.value = sel.label;
+
+  if (!S.map) initMap();
+  if (S.map) S.map.setView([sel.lat, sel.lng], 14);
+
+  S.pendingLoc = { name: sel.name, lat: sel.lat, lng: sel.lng };
+  document.getElementById('confirm-city-name').textContent = '📍 ' + sel.label;
+  document.getElementById('confirm-popup').classList.add('show');
+}
+
 // ═══════════ NAVIGATION ═══════════
 function showView(id) {
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
@@ -742,7 +937,21 @@ function syncAddModeButton() {
   btn.classList.toggle('active',S.addMode);
   btn.textContent=S.addMode?'✋ Ajout actif':'📍 Mode ajout';
 }
-function goHome() { S.current=null; S.addMode=false; syncAddModeButton(); renderHomeList(); showView('home'); }
+function syncRemoveModeButton() {
+  const btn=document.getElementById('remove-mode-btn');
+  if(!btn) return;
+  btn.classList.toggle('active',S.removeMode);
+  btn.textContent=S.removeMode?'✋ Suppression active':'🧹 Mode suppression';
+}
+function goHome() {
+  S.current=null;
+  S.addMode=false;
+  S.removeMode=false;
+  syncAddModeButton();
+  syncRemoveModeButton();
+  renderHomeList();
+  showView('home');
+}
 function newTour() { S.current=ensureTourDefaults({id:Date.now(),name:'',departure:null,stops:[]}); openEditor(); }
 function openTour(id) {
   const t=S.tours.find(x=>x.id===id); if(!t) return;
@@ -752,7 +961,9 @@ function openEditor() {
   showView('editor');
   ensureTourDefaults(S.current);
   S.addMode=false;
+  S.removeMode=false;
   syncAddModeButton();
+  syncRemoveModeButton();
   renderRouteOptions();
   document.getElementById('tour-name-input').value=S.current.name;
   renderDepDisplay(); renderStopsList(); switchTab('list');
@@ -780,6 +991,7 @@ function switchTab(tab) {
     document.getElementById(t+'-tab').classList.toggle('active',t===tab);
     document.getElementById('tab-'+t+'-btn').classList.toggle('active',t===tab);
   });
+  if(tab!=='map') clearMapSearchSuggestions();
   const pane=document.getElementById(tab+'-tab');
   pane.classList.remove('tab-enter');
   void pane.offsetWidth;
@@ -794,11 +1006,17 @@ function switchTab(tab) {
 async function setDeparture() {
   const val=document.getElementById('departure-input').value.trim();
   if(!val){ showToast('⚠️ Entrez un nom de ville'); return; }
+  const picked = (S.listSearchResults.departure || []).find(x => x.label === val || x.name === val);
+  if (picked) { setDepartureFromLoc(picked); return; }
   showLoading('Recherche de '+val+'…');
   const loc=await geocode(val); hideLoading();
   if(!loc){ showToast('❌ Ville non trouvée, réessayez'); return; }
+  setDepartureFromLoc(loc);
+}
+function setDepartureFromLoc(loc) {
   S.current.departure=loc;
   document.getElementById('departure-input').value='';
+  clearListSuggestions('departure');
   renderDepDisplay(); updateMapMarkers();
   renderRouteStats();
   showToast('✅ Départ : '+loc.name);
@@ -813,11 +1031,19 @@ function renderDepDisplay() {
 async function addStopBySearch() {
   const val=document.getElementById('stop-input').value.trim();
   if(!val){ showToast('⚠️ Entrez un nom de ville'); return; }
+  const picked = (S.listSearchResults.stop || []).find(x => x.label === val || x.name === val);
+  if (picked) {
+    addStop(picked);
+    document.getElementById('stop-input').value='';
+    clearListSuggestions('stop');
+    return;
+  }
   showLoading('Recherche de '+val+'…');
   const loc=await geocode(val); hideLoading();
   if(!loc){ showToast('❌ Ville non trouvée, réessayez'); return; }
   addStop(loc);
   document.getElementById('stop-input').value='';
+  clearListSuggestions('stop');
 }
 function addStop(loc,notes='',origin='search') {
   S.current.stops.push({id:Date.now()+Math.random(),name:loc.name,lat:loc.lat,lng:loc.lng,notes});
@@ -1019,10 +1245,17 @@ async function updateMapMarkers() {
   const {departure,stops}=S.current, pts=[];
   if(departure){
     const m=L.marker([departure.lat,departure.lng],{icon:makeIcon('🚀')}).addTo(S.map).bindPopup(`<b>Départ</b><br>${esc(departure.name)}`);
+    m.on('click', () => {
+      if (S.removeMode) showToast('⚠️ Le point de départ ne se supprime pas ici');
+    });
     S.markers.push(m); pts.push([departure.lat,departure.lng]);
   }
   stops.forEach((s,i)=>{
     const m=L.marker([s.lat,s.lng],{icon:makeIcon(i+1)}).addTo(S.map).bindPopup(`<b>Étape ${i+1}</b><br>${esc(s.name)}${s.notes?`<br><i style="color:#aaa">${esc(s.notes)}</i>`:''}`);
+    m.on('click', () => {
+      if (!S.removeMode) return;
+      removeStopFromMap(s.id, s.name);
+    });
     S.markers.push(m); pts.push([s.lat,s.lng]);
   });
   if (departure && stops.length && S.current?.options?.returnToStart) {
@@ -1044,8 +1277,25 @@ function fitMapBounds(){ updateMapMarkers(); }
 
 function toggleAddMode(){
   S.addMode=!S.addMode;
+  if(S.addMode) S.removeMode=false;
   syncAddModeButton();
+  syncRemoveModeButton();
   if(S.addMode) showToast('Cliquez sur la carte pour ajouter une étape');
+}
+
+function toggleRemoveMode(){
+  S.removeMode=!S.removeMode;
+  if(S.removeMode) S.addMode=false;
+  syncRemoveModeButton();
+  syncAddModeButton();
+  if(S.removeMode) showToast('Touchez un marqueur étape pour le supprimer');
+}
+
+function removeStopFromMap(id, name){
+  if(!S.current) return;
+  if(!confirm(`Supprimer l'étape "${name}" ?`)) return;
+  removeStop(id);
+  showToast(`🧹 Étape supprimée : ${name}`);
 }
 
 async function onMapClick(e){
@@ -1177,6 +1427,14 @@ function closeOnboarding(markDone){
   el.classList.remove('show');
   if(markDone) localStorage.setItem(ONBOARD_KEY, '1');
 }
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('map-search-wrap');
+  if (wrap && !wrap.contains(e.target)) clearMapSearchSuggestions();
+  const depWrap = document.getElementById('departure-input')?.closest('.field-group');
+  const stopWrap = document.getElementById('stop-input')?.closest('.field-group');
+  if (depWrap && !depWrap.contains(e.target)) clearListSuggestions('departure');
+  if (stopWrap && !stopWrap.contains(e.target)) clearListSuggestions('stop');
+});
 
 // ═══════════ BOOT ═══════════
 loadTheme();
