@@ -401,6 +401,17 @@
   </div>
 </div>
 
+<!-- Route recap popup -->
+<div class="popup-overlay" id="route-recap-popup">
+  <div class="popup">
+    <h3>📊 Récap de la tournée</h3>
+    <p id="route-recap-text">Distance et durée estimées</p>
+    <div class="popup-btns">
+      <button class="popup-btn confirm" onclick="closePopup('route-recap-popup')">OK</button>
+    </div>
+  </div>
+</div>
+
 <!-- Onboarding -->
 <div id="onboarding-overlay" class="onboarding-overlay">
   <div class="onboarding-card">
@@ -808,10 +819,11 @@ async function addStopBySearch() {
   addStop(loc);
   document.getElementById('stop-input').value='';
 }
-function addStop(loc,notes='') {
+function addStop(loc,notes='',origin='search') {
   S.current.stops.push({id:Date.now()+Math.random(),name:loc.name,lat:loc.lat,lng:loc.lng,notes});
   renderStopsList(); updateMapMarkers();
   showToast('✅ '+loc.name+' ajouté');
+  if(origin==='map' && S.current.stops.length>=2) showRouteRecapPopup();
 }
 function removeStop(id) { S.current.stops=S.current.stops.filter(s=>s.id!==id); renderStopsList(); updateMapMarkers(); }
 function moveStop(id,dir) {
@@ -1044,7 +1056,7 @@ async function onMapClick(e){
   document.getElementById('confirm-city-name').textContent='📍 '+loc.name;
   document.getElementById('confirm-popup').classList.add('show');
 }
-function confirmAddFromMap(){ closePopup('confirm-popup'); if(S.pendingLoc){addStop(S.pendingLoc);S.pendingLoc=null;} }
+function confirmAddFromMap(){ closePopup('confirm-popup'); if(S.pendingLoc){addStop(S.pendingLoc,'','map');S.pendingLoc=null;} }
 
 // ═══════════ NAV URLS ═══════════
 function buildGoogleMapsUrl(){
@@ -1114,6 +1126,14 @@ function runWithSkeleton(action,msg='Traitement en cours…',delay=140){
     try{ action(); }
     finally{ hideSkeleton(); }
   },delay);
+}
+function showRouteRecapPopup(){
+  const stats = getRouteStats(S.current);
+  if(!stats) return;
+  const text = `Étapes : ${S.current.stops.length} · Distance : ${formatKm(stats.distanceKm)} · Durée estimée : ${formatDuration(stats.durationMin)}`;
+  const el = document.getElementById('route-recap-text');
+  if(el) el.textContent = text;
+  document.getElementById('route-recap-popup').classList.add('show');
 }
 function closePopup(id){ document.getElementById(id).classList.remove('show'); }
 function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
