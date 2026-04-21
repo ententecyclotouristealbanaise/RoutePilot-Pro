@@ -3,7 +3,7 @@
   "short_name": "RoutePilot",
   "description": "Planification intelligente des tournees terrain",
   "lang": "fr",
-  "start_url": "./mes_tournees%20(1).html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
