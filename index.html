@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0d6efd">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="RoutePilot Pro">
+  <title>RoutePilot Pro</title>
+  <link rel="manifest" href="./routepilot.webmanifest">
+  <link rel="icon" type="image/svg+xml" href="./routepilot-icon-192.svg">
+  <link rel="apple-touch-icon" href="./routepilot-icon-192.svg">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#0a1220; --surface:#121b2d; --card:#162238; --card2:#1d2c46;
+      --accent:#0d6efd; --accent-soft:rgba(13,110,253,.18);
+      --text:#edf3ff; --muted:#9fb0cf; --border:rgba(255,255,255,.10);
+      --danger:#FF453A; --maps:#1A73E8; --waze:#00B4E4;
+      --r:16px; --rs:10px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;font-family:'DM Sans',sans-serif;background:radial-gradient(1200px 700px at 0% -20%,#1a2c4d 0%,var(--bg) 55%),var(--bg);color:var(--text);font-size:16px;overflow:hidden;transition:background .25s,color .2s}
+    body.theme-light{
+      --bg:#eef4ff; --surface:#ffffff; --card:#ffffff; --card2:#f5f9ff;
+      --accent:#0d6efd; --accent-soft:rgba(13,110,253,.14);
+      --text:#0c1a33; --muted:#5b6f92; --border:rgba(15,40,85,.14);
+      background:radial-gradient(1000px 600px at 0% -10%,#cfe0ff 0%,var(--bg) 65%),var(--bg);
+    }
+    .view{position:fixed;inset:0;display:none;flex-direction:column;overflow:hidden}
+    .view.active{display:flex;animation:viewIn .35s ease}
+    @keyframes viewIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+    .theme-toggle{position:fixed;top:14px;right:14px;z-index:1200;width:42px;height:42px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 20px rgba(0,0,0,.22)}
+
+    /* HOME */
+    .home-header{padding:52px 24px 20px;background:linear-gradient(180deg,var(--surface) 70%,transparent);border-bottom:1px solid var(--border)}
+    .home-header h1{font-family:'Outfit',sans-serif;font-size:2rem;font-weight:800;line-height:1.1}
+    .home-header h1 span{color:var(--accent)}
+    .home-header p{color:var(--muted);font-size:.85rem;margin-top:5px}
+    .brand-row{display:flex;align-items:center;gap:12px}
+    .logo-mark{width:44px;height:44px;filter:drop-shadow(0 4px 10px rgba(13,110,253,.35));flex-shrink:0}
+    .home-body{flex:1;overflow-y:auto;padding:16px 20px 110px}
+    .home-tools{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .tool-btn{flex:1 1 30%;padding:10px 12px;border-radius:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;font-size:.78rem}
+    .tool-btn:active{transform:scale(.98)}
+    .section-label{font-family:'Outfit',sans-serif;font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+    .tour-card{background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.01));border-radius:var(--r);padding:14px 16px;margin-bottom:10px;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:13px;transition:transform .15s,background .15s;backdrop-filter:blur(6px);box-shadow:0 10px 22px rgba(0,0,0,.22)}
+    .tour-card:active{transform:scale(.98);background:var(--card2)}
+    .tour-icon{width:42px;height:42px;background:var(--accent-soft);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+    .tour-info{flex:1;min-width:0}
+    .tour-info h3{font-family:'Outfit',sans-serif;font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .tour-info p{font-size:.75rem;color:var(--muted);margin-top:3px}
+    .tour-del{background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.1rem;padding:8px;flex-shrink:0}
+    .empty-state{text-align:center;padding:56px 20px;color:var(--muted)}
+    .empty-state .icon{font-size:3rem;margin-bottom:12px}
+    .empty-state p{font-size:.85rem;line-height:1.6}
+    .fab{position:fixed;bottom:30px;right:22px;width:62px;height:62px;background:linear-gradient(135deg,#0d6efd,#35a0ff);border-radius:50%;border:none;cursor:pointer;font-size:1.8rem;color:#fff;box-shadow:0 8px 24px rgba(13,110,253,.4);display:flex;align-items:center;justify-content:center;z-index:100}
+    .fab:active{transform:scale(.92)}
+
+    /* EDITOR */
+    .editor-header{display:flex;align-items:center;gap:10px;padding:50px 16px 14px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+    .btn-back{background:var(--card);border:none;cursor:pointer;width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;color:var(--text);flex-shrink:0}
+    #tour-name-input{flex:1;background:transparent;border:none;outline:none;font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:700;color:var(--text);min-width:0}
+    #tour-name-input::placeholder{color:var(--muted)}
+    .btn-save{border:none;cursor:pointer;padding:7px 14px;border-radius:9px;font-family:'Outfit',sans-serif;font-weight:700;font-size:.8rem;color:#fff;flex-shrink:0}
+
+    /* TABS */
+    .tab-bar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+    .tab{flex:1;padding:12px;text-align:center;background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;transition:color .15s,border-color .15s}
+    .tab.active{color:#7eb6ff;border-bottom-color:#7eb6ff}
+    .tab-content{display:none;flex:1;overflow:hidden;flex-direction:column}
+    .tab-content.active{display:flex}
+    .tab-content.active.tab-enter{animation:tabIn .24s ease}
+    @keyframes tabIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+
+    /* LIST TAB */
+    #list-tab{overflow-y:auto;padding:14px 16px 120px;gap:11px}
+    .field-group{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.015));border-radius:var(--r);padding:14px;border:1px solid var(--border);flex-shrink:0}
+    .field-label{font-size:.68rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700;margin-bottom:8px}
+    .search-row{display:flex;gap:7px}
+    .search-input{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;transition:border-color .15s}
+    .search-input:focus{border-color:var(--accent)}
+    .search-input::placeholder{color:var(--muted)}
+    .btn-add{border:none;cursor:pointer;padding:9px 16px;border-radius:var(--rs);color:#fff;font-size:.9rem;font-weight:700;white-space:nowrap;font-family:'Outfit',sans-serif}
+    .dep-display{font-size:.88rem;color:var(--text);font-weight:500;margin-top:8px}
+    .dep-display.empty{color:var(--muted)}
+    .stops-header{display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+    .btn-optimize{background:linear-gradient(135deg,#0d6efd,#3da6ff);border:none;cursor:pointer;padding:8px 14px;border-radius:20px;font-family:'Outfit',sans-serif;font-weight:700;font-size:.75rem;color:#fff;display:flex;align-items:center;gap:5px;box-shadow:0 3px 10px rgba(13,110,253,.35)}
+    .route-stats{display:flex;gap:9px}
+    .route-stat{flex:1;background:var(--card2);border:1px solid var(--border);padding:10px;border-radius:11px}
+    .route-stat .k{font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+    .route-stat .v{margin-top:4px;font-family:'Outfit',sans-serif;font-size:1rem;font-weight:700;color:var(--text)}
+    .stop-item{background:var(--card);border-radius:var(--r);padding:12px 13px;border:1px solid var(--border);flex-shrink:0}
+    .stop-top{display:flex;align-items:center;gap:9px}
+    .stop-badge{width:28px;height:28px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Outfit',sans-serif;font-weight:800;font-size:.78rem;color:#fff;flex-shrink:0}
+    .stop-name{flex:1;font-weight:500;font-size:.9rem;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .stop-actions{display:flex;gap:4px;flex-shrink:0}
+    .stop-btn{background:var(--card2);border:none;cursor:pointer;width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:var(--muted)}
+    .stop-btn.danger{color:var(--danger)}
+    .note-input{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:var(--rs);padding:7px 11px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;margin-top:9px;transition:border-color .15s}
+    .note-input:focus{border-color:var(--accent)}
+    .note-input::placeholder{color:var(--muted)}
+
+    /* MAP TAB */
+    #map-tab{position:relative}
+    #map{position:absolute;top:0;left:0;right:0;bottom:0}
+    .map-toolbar{position:absolute;top:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:7px}
+    .map-btn{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+    .map-btn.active{background:#0d6efd;border-color:#0d6efd;color:#fff}
+
+    /* ACTION BAR */
+    .action-bar{position:fixed;bottom:0;left:0;right:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 14px 26px;display:none;gap:7px;z-index:500}
+    .action-bar.visible{display:flex}
+    .action-btn{flex:1;border:none;cursor:pointer;padding:11px 6px;border-radius:var(--rs);font-family:'Outfit',sans-serif;font-weight:700;font-size:.68rem;display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform .1s}
+    .action-btn:active{transform:scale(.95)}
+    .action-btn .icon{font-size:1.3rem}
+    .action-btn.maps{background:linear-gradient(135deg,#1a73e8,#2f8dff);color:#fff}
+    .action-btn.waze{background:var(--waze);color:#fff}
+    .action-btn.share{background:var(--card2);color:var(--text);border:1px solid var(--border)}
+
+    /* TOAST */
+    .toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:var(--card2);color:var(--text);padding:10px 20px;border-radius:24px;font-size:.82rem;font-weight:500;z-index:9999;opacity:0;transition:opacity .25s;white-space:nowrap;border:1px solid var(--border);pointer-events:none;max-width:90vw;text-align:center}
+    .toast.show{opacity:1}
+
+    /* LOADING */
+    .loading-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:9998;flex-direction:column;gap:14px}
+    .loading-overlay.show{display:flex}
+    .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .loading-overlay p{color:var(--text);font-size:.85rem}
+
+    .skeleton-overlay{position:fixed;inset:0;display:none;z-index:9996;align-items:center;justify-content:center;background:rgba(8,14,26,.72);backdrop-filter:blur(3px)}
+    .skeleton-overlay.show{display:flex}
+    .skeleton-card{width:min(92vw,420px);padding:18px;border-radius:14px;border:1px solid var(--border);background:var(--surface)}
+    .skeleton-title{font-size:.82rem;color:var(--muted);margin-bottom:12px}
+    .sk{height:12px;border-radius:8px;background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.2),rgba(255,255,255,.06));background-size:240% 100%;animation:shimmer 1.1s infinite}
+    .sk + .sk{margin-top:8px}
+    @keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
+
+    .splash-screen{position:fixed;inset:0;z-index:1300;display:flex;align-items:center;justify-content:center;background:radial-gradient(900px 500px at 50% -10%,#2d4f86 0%,#091223 60%)}
+    .splash-inner{display:flex;flex-direction:column;align-items:center;gap:10px;color:#e7f0ff}
+    .splash-logo{width:72px;height:72px;filter:drop-shadow(0 10px 24px rgba(13,110,253,.45));animation:splashFloat 1.4s ease-in-out infinite}
+    .splash-title{font-family:'Outfit',sans-serif;font-size:1.2rem;font-weight:800;letter-spacing:.02em}
+    .splash-sub{font-size:.82rem;color:#b3c9ef}
+    .splash-screen.hide{animation:splashOut .4s ease forwards;pointer-events:none}
+    @keyframes splashFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+    @keyframes splashOut{to{opacity:0;visibility:hidden}}
+
+    /* POPUPS */
+    .popup-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:flex-end;justify-content:center;z-index:9997}
+    .popup-overlay.show{display:flex}
+    .popup{background:linear-gradient(180deg,#16233a,#121b2d);border-radius:20px 20px 0 0;padding:24px 22px 40px;width:100%;max-width:500px;border:1px solid var(--border);border-bottom:none}
+    .popup h3{font-family:'Outfit',sans-serif;font-weight:800;font-size:1.05rem;margin-bottom:6px}
+    .popup p{color:var(--muted);font-size:.85rem;margin-bottom:18px;line-height:1.5}
+    .popup-btns{display:flex;gap:9px}
+    .popup-btn{flex:1;padding:13px;border-radius:var(--rs);border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;font-size:.9rem}
+    .popup-btn.cancel{background:var(--card2);color:var(--text)}
+    .popup-btn.confirm{background:#0d6efd;color:#fff}
+    .share-opts{display:flex;flex-direction:column;gap:9px}
+    .share-opt{padding:13px;border-radius:var(--rs);border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-weight:700;font-size:.9rem;color:#fff;text-align:left;display:flex;align-items:center;gap:10px}
+
+    ::-webkit-scrollbar{width:3px}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+    .leaflet-popup-content-wrapper{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:10px}
+    .leaflet-popup-tip{background:var(--surface)}
+
+    .btn-primary{background:linear-gradient(135deg,#0d6efd,#3b9dff);border:none}
+    .btn-outline-light{border-color:var(--border)}
+    .form-control{background:var(--card2);border-color:var(--border);color:var(--text)}
+    .form-control:focus{background:var(--card2);border-color:#6fb4ff;box-shadow:0 0 0 .2rem rgba(13,110,253,.2);color:var(--text)}
+    .badge-soft{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;border:1px solid var(--border);background:rgba(13,110,253,.16);color:#b9d7ff;font-size:.72rem;font-weight:600;margin-bottom:10px}
+
+    .reveal{opacity:0;animation:riseIn .46s ease forwards}
+    @keyframes riseIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+    .onboarding-overlay{position:fixed;inset:0;z-index:1400;display:none;align-items:flex-end;justify-content:center;background:rgba(7,10,18,.66);backdrop-filter:blur(2px)}
+    .onboarding-overlay.show{display:flex}
+    .onboarding-card{width:min(94vw,520px);margin:0 0 18px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px}
+    .onboarding-title{font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:800;margin-bottom:6px}
+    .onboarding-text{font-size:.86rem;color:var(--muted);line-height:1.5;margin-bottom:14px}
+    .onboarding-list{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+    .onboarding-item{font-size:.84rem;color:var(--text);padding:8px 10px;border-radius:10px;background:var(--card2);border:1px solid var(--border)}
+
+    @media (prefers-reduced-motion: reduce){
+      *{scroll-behavior:auto !important}
+      .view.active,.reveal,.splash-logo,.tab-content.active.tab-enter{animation:none !important}
+      .tour-card,.action-btn,.tool-btn{transition:none !important}
+      .splash-screen.hide{animation:none !important;opacity:0;visibility:hidden}
+    }
+  </style>
+</head>
+<body>
+<div id="splash-screen" class="splash-screen">
+  <div class="splash-inner">
+    <svg class="splash-logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="gs" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#3ea5ff"/>
+          <stop offset="100%" stop-color="#0d6efd"/>
+        </linearGradient>
+      </defs>
+      <rect x="4" y="6" width="56" height="52" rx="14" fill="url(#gs)"/>
+      <path d="M17 42c8-1 12-4 15-11 2-5 8-8 14-8h2" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <circle cx="19" cy="42" r="4" fill="#fff"/>
+      <circle cx="47" cy="23" r="4" fill="#fff"/>
+    </svg>
+    <div class="splash-title">RoutePilot Pro</div>
+    <div class="splash-sub">Initialisation de l'espace de tournée…</div>
+  </div>
+</div>
+<button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" aria-label="Basculer le thème">🌙</button>
+
+<!-- HOME -->
+<div id="home-view" class="view active">
+  <div class="home-header">
+    <div class="badge-soft">PRO EDITION</div>
+    <div class="brand-row">
+      <svg class="logo-mark" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#3ea5ff"/>
+            <stop offset="100%" stop-color="#0d6efd"/>
+          </linearGradient>
+        </defs>
+        <rect x="4" y="6" width="56" height="52" rx="14" fill="url(#g1)"/>
+        <path d="M17 42c8-1 12-4 15-11 2-5 8-8 14-8h2" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round"/>
+        <circle cx="19" cy="42" r="4" fill="#fff"/>
+        <circle cx="47" cy="23" r="4" fill="#fff"/>
+      </svg>
+      <h1>RoutePilot <span>Pro</span></h1>
+    </div>
+    <p>Planification intelligente des tournées terrain</p>
+  </div>
+  <div class="home-body">
+    <div class="section-label">Tournées enregistrées</div>
+    <div class="home-tools">
+      <button class="tool-btn btn btn-outline-light" onclick="exportTours()">⬇️ Export JSON</button>
+      <button class="tool-btn btn btn-outline-light" onclick="exportToursCsv()">📄 Export CSV</button>
+      <button class="tool-btn btn btn-primary" onclick="triggerImportTours()">⬆️ Import JSON</button>
+      <button class="tool-btn btn btn-outline-light" onclick="openOnboarding()">🧭 Guide</button>
+    </div>
+    <input type="file" id="import-file" accept="application/json,.json" style="display:none" onchange="importToursFromFile(event)">
+    <div id="tours-list"></div>
+  </div>
+  <button class="fab" onclick="newTour()">+</button>
+</div>
+
+<!-- EDITOR -->
+<div id="editor-view" class="view">
+  <div class="editor-header">
+    <button class="btn-back" onclick="goHome()">←</button>
+    <input type="text" class="form-control" id="tour-name-input" placeholder="Nom de la tournée…" maxlength="40">
+    <button class="btn-save btn btn-primary" onclick="saveTour()">💾 Sauvegarder</button>
+  </div>
+  <div class="tab-bar">
+    <button class="tab active" id="tab-list-btn" onclick="switchTab('list')">📋 Liste</button>
+    <button class="tab" id="tab-map-btn" onclick="switchTab('map')">🗺️ Carte</button>
+  </div>
+
+  <!-- LIST TAB -->
+  <div id="list-tab" class="tab-content active">
+    <div class="field-group">
+      <div class="field-label">🚀 Point de départ</div>
+      <div class="search-row">
+        <input type="text" class="search-input" id="departure-input" placeholder="Ex : Lamballe…" onkeydown="if(event.key==='Enter')setDeparture()">
+        <button class="btn-add btn btn-primary" onclick="setDeparture()">OK</button>
+      </div>
+      <div id="dep-display" class="dep-display empty">Aucun départ défini</div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">➕ Ajouter une étape</div>
+      <div class="search-row">
+        <input type="text" class="search-input" id="stop-input" placeholder="Nom de la ville…" onkeydown="if(event.key==='Enter')addStopBySearch()">
+        <button class="btn-add btn btn-primary" onclick="addStopBySearch()">Ajouter</button>
+      </div>
+      <div style="margin-top:7px;font-size:.75rem;color:var(--muted)">💡 Ou passez en <b style="color:var(--accent)">🗺️ Carte</b> → Mode ajout pour cliquer sur la carte</div>
+    </div>
+
+    <div class="field-group">
+      <div class="field-label">⚙️ Options de trajet</div>
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" role="switch" id="route-return-switch" onchange="updateRouteOption('returnToStart', this.checked)">
+        <label class="form-check-label" for="route-return-switch">Retour au dépôt (boucle)</label>
+      </div>
+      <div class="form-check form-switch" style="margin-top:8px">
+        <input class="form-check-input" type="checkbox" role="switch" id="route-avoid-motorways-switch" onchange="updateRouteOption('avoidMotorways', this.checked)">
+        <label class="form-check-label" for="route-avoid-motorways-switch">Éviter les autoroutes</label>
+      </div>
+    </div>
+
+    <div class="stops-header">
+      <span class="section-label" style="margin:0">Étapes · <span id="stops-count">0</span></span>
+      <button class="btn-optimize" onclick="doOptimize()">⚡ Optimiser l'ordre</button>
+    </div>
+
+    <div class="field-group route-stats" id="route-stats">
+      <div class="route-stat">
+        <div class="k">Distance estimée</div>
+        <div class="v" id="stat-distance">0.0 km</div>
+      </div>
+      <div class="route-stat">
+        <div class="k">Temps estimé</div>
+        <div class="v" id="stat-duration">0 min</div>
+      </div>
+    </div>
+
+    <div id="stops-list" style="display:flex;flex-direction:column;gap:9px"></div>
+  </div>
+
+  <!-- MAP TAB -->
+  <div id="map-tab" class="tab-content">
+    <div id="map"></div>
+    <div class="map-toolbar">
+      <button class="map-btn" id="add-mode-btn" onclick="toggleAddMode()">📍 Mode ajout</button>
+      <button class="map-btn" onclick="fitMapBounds()">🎯 Tout voir</button>
+    </div>
+  </div>
+</div>
+
+<!-- Action Bar -->
+<div class="action-bar" id="action-bar">
+  <button class="action-btn maps" onclick="openGoogleMaps()"><span class="icon">🗺️</span>Google Maps</button>
+  <button class="action-btn waze" onclick="openWaze()"><span class="icon">🚦</span>Waze</button>
+  <button class="action-btn share" onclick="openSharePopup()"><span class="icon">📤</span>Partager</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <p id="loading-text">Recherche en cours…</p>
+</div>
+
+<!-- Skeleton processing -->
+<div class="skeleton-overlay" id="skeleton-overlay">
+  <div class="skeleton-card">
+    <div class="skeleton-title" id="skeleton-text">Traitement en cours…</div>
+    <div class="sk" style="width:92%"></div>
+    <div class="sk" style="width:84%"></div>
+    <div class="sk" style="width:68%"></div>
+  </div>
+</div>
+
+<!-- Confirm popup -->
+<div class="popup-overlay" id="confirm-popup">
+  <div class="popup">
+    <h3>Ajouter cette étape ?</h3>
+    <p id="confirm-city-name"></p>
+    <div class="popup-btns">
+      <button class="popup-btn cancel" onclick="closePopup('confirm-popup')">Annuler</button>
+      <button class="popup-btn confirm" onclick="confirmAddFromMap()">Ajouter ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share popup -->
+<div class="popup-overlay" id="share-popup">
+  <div class="popup">
+    <h3>📤 Partager la tournée</h3>
+    <p>Envoyez l'itinéraire à vos collègues ou clients</p>
+    <div class="share-opts">
+      <button class="share-opt" style="background:#30D158" onclick="shareViaSMS()">💬 Envoyer par SMS</button>
+      <button class="share-opt" style="background:#1A73E8" onclick="shareViaEmail()">✉️ Envoyer par Email</button>
+      <button class="share-opt" style="background:#5856D6" onclick="copyShareText()">📋 Copier le texte</button>
+    </div>
+    <button class="popup-btn cancel" style="margin-top:12px;width:100%" onclick="closePopup('share-popup')">Fermer</button>
+  </div>
+</div>
+
+<!-- Import mode popup -->
+<div class="popup-overlay" id="import-mode-popup">
+  <div class="popup">
+    <h3>⬆️ Import des tournées</h3>
+    <p>Choisissez comment intégrer le fichier JSON.</p>
+    <div class="popup-btns">
+      <button class="popup-btn cancel" onclick="closePopup('import-mode-popup')">Annuler</button>
+      <button class="popup-btn" style="background:#0A84FF;color:#fff" onclick="selectImportMode('replace')">Remplacer tout</button>
+      <button class="popup-btn confirm" onclick="selectImportMode('merge')">Fusionner</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import preview popup -->
+<div class="popup-overlay" id="import-preview-popup">
+  <div class="popup">
+    <h3>🧾 Prévisualisation</h3>
+    <p id="import-preview-file">Fichier : -</p>
+    <p id="import-preview-mode" style="margin-top:-10px">Mode : -</p>
+    <p id="import-preview-stats" style="margin-top:-10px">Résumé : -</p>
+    <p id="import-preview-list" style="margin-top:-10px;white-space:pre-line">Aperçu : -</p>
+    <div class="popup-btns">
+      <button class="popup-btn cancel" onclick="cancelImportPreview()">Annuler</button>
+      <button class="popup-btn confirm" onclick="confirmImportTours()">Confirmer l'import</button>
+    </div>
+  </div>
+</div>
+
+<!-- Onboarding -->
+<div id="onboarding-overlay" class="onboarding-overlay">
+  <div class="onboarding-card">
+    <div class="onboarding-title">Bienvenue sur RoutePilot Pro</div>
+    <div class="onboarding-text">Votre poste de pilotage pour créer, optimiser et partager vos tournées en quelques gestes.</div>
+    <div class="onboarding-list">
+      <div class="onboarding-item">1. Définissez votre point de départ puis ajoutez vos étapes</div>
+      <div class="onboarding-item">2. Lancez l'optimisation pour réduire kilomètres et durée</div>
+      <div class="onboarding-item">3. Exportez ou partagez votre tournée instantanément</div>
+    </div>
+    <div class="d-grid gap-2">
+      <button class="btn btn-primary" onclick="closeOnboarding(true)">Démarrer</button>
+      <button class="btn btn-outline-light" onclick="closeOnboarding(false)">Plus tard</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════ STATE ═══════════
+const S = { tours:[], current:null, map:null, markers:[], polyline:null, addMode:false, pendingLoc:null, routeReqId:0 };
+const STORAGE_KEY = 'mt_v2';
+const THEME_KEY = 'rp_theme_v1';
+const ONBOARD_KEY = 'rp_onboard_done_v1';
+const DEFAULT_OPTIONS = { returnToStart:false, avoidMotorways:false };
+let pendingImportMode = 'merge';
+let pendingImportBatch = null;
+let pendingImportFileName = '';
+
+// ═══════════ STORAGE ═══════════
+function ensureTourDefaults(tour) {
+  if (!tour || typeof tour !== 'object') return tour;
+  tour.options = { ...DEFAULT_OPTIONS, ...(tour.options || {}) };
+  tour.stops = Array.isArray(tour.stops) ? tour.stops : [];
+  return tour;
+}
+function loadTours() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+    S.tours = Array.isArray(raw) ? raw.map(t => ensureTourDefaults(t)) : [];
+  } catch(e){
+    S.tours=[];
+  }
+}
+function saveTours() { localStorage.setItem(STORAGE_KEY, JSON.stringify(S.tours)); }
+
+// ═══════════ METRICS ═══════════
+function formatKm(km, decimals = 1) {
+  return `${Number(km||0).toLocaleString('fr-FR',{minimumFractionDigits:decimals,maximumFractionDigits:decimals})} km`;
+}
+function formatDuration(minutes) {
+  const min = Math.max(0, Math.round(Number(minutes)||0));
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (!h) return `${m} min`;
+  return `${h}h${String(m).padStart(2,'0')}`;
+}
+function getRouteStats(tour) {
+  if (!tour?.departure || !Array.isArray(tour.stops) || !tour.stops.length) return null;
+  let distanceKm = 0;
+  let prev = tour.departure;
+  tour.stops.forEach(s => { distanceKm += dist(prev, s); prev = s; });
+  if (tour?.options?.returnToStart) distanceKm += dist(prev, tour.departure);
+  const avgSpeedKmh = 48;
+  const extraLeg = tour?.options?.returnToStart ? 1 : 0;
+  const stopPenaltyMin = Math.max(0, tour.stops.length - 1 + extraLeg) * 3;
+  const durationMin = (distanceKm / avgSpeedKmh) * 60 + stopPenaltyMin;
+  return { distanceKm, durationMin };
+}
+function renderRouteStats() {
+  const dEl = document.getElementById('stat-distance');
+  const tEl = document.getElementById('stat-duration');
+  if (!dEl || !tEl) return;
+  const stats = getRouteStats(S.current);
+  if (!stats) {
+    dEl.textContent = '0.0 km';
+    tEl.textContent = '0 min';
+    return;
+  }
+  dEl.textContent = formatKm(stats.distanceKm);
+  tEl.textContent = formatDuration(stats.durationMin);
+}
+
+// ═══════════ IMPORT / EXPORT ═══════════
+function triggerImportTours() {
+  document.getElementById('import-mode-popup').classList.add('show');
+}
+function selectImportMode(mode) {
+  pendingImportMode = mode === 'replace' ? 'replace' : 'merge';
+  closePopup('import-mode-popup');
+  const input = document.getElementById('import-file');
+  if (!input) return;
+  input.value = '';
+  input.click();
+}
+function cancelImportPreview() {
+  pendingImportBatch = null;
+  pendingImportFileName = '';
+  closePopup('import-preview-popup');
+}
+function buildImportPreview(imported, mode) {
+  const existingIds = new Set(S.tours.map(t => t.id));
+  let collisions = 0;
+  imported.forEach(t => { if (existingIds.has(t.id)) collisions++; });
+  return {
+    importedCount: imported.length,
+    collisions,
+    existingCount: S.tours.length,
+    resultCount: mode === 'replace' ? imported.length : imported.length + S.tours.length
+  };
+}
+function showImportPreview(fileName, mode, summary, imported) {
+  document.getElementById('import-preview-file').textContent = `Fichier : ${fileName || 'inconnu'}`;
+  document.getElementById('import-preview-mode').textContent = `Mode : ${mode === 'replace' ? 'Remplacer tout' : 'Fusionner'}`;
+  document.getElementById('import-preview-stats').textContent =
+    `Tournées détectées : ${summary.importedCount} · IDs en conflit : ${summary.collisions} · Total après import : ${summary.resultCount}`;
+
+  const top = (imported || []).slice(0, 5);
+  const lines = top.map((t, i) => `${i + 1}. ${String(t.name || 'Sans nom')} (${Array.isArray(t.stops) ? t.stops.length : 0} étape${(Array.isArray(t.stops) ? t.stops.length : 0) > 1 ? 's' : ''})`);
+  const more = (imported?.length || 0) > 5 ? `\n… +${imported.length - 5} autre(s)` : '';
+  document.getElementById('import-preview-list').textContent = lines.length ? `Aperçu :\n${lines.join('\n')}${more}` : 'Aperçu : -';
+
+  document.getElementById('import-preview-popup').classList.add('show');
+}
+function normalizePoint(p) {
+  if (!p) return null;
+  const lat = Number(p.lat);
+  const lng = Number(p.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { name: String(p.name || 'Lieu'), lat, lng };
+}
+function normalizeImportedTour(raw, idx) {
+  if (!raw || typeof raw !== 'object') return null;
+  const departure = normalizePoint(raw.departure);
+  const stops = Array.isArray(raw.stops) ? raw.stops.map((s, i) => {
+    const pt = normalizePoint(s);
+    if (!pt) return null;
+    return { id: Number(s.id) || (Date.now() + idx + i + Math.random()), name: pt.name, lat: pt.lat, lng: pt.lng, notes: String(s.notes || '') };
+  }).filter(Boolean) : [];
+  return {
+    id: Number(raw.id) || (Date.now() + idx + Math.random()),
+    name: String(raw.name || `Tournée importée ${idx + 1}`),
+    date: String(raw.date || new Date().toLocaleDateString('fr-FR')),
+    departure,
+    stops,
+    options: { ...DEFAULT_OPTIONS, ...(raw.options || {}) }
+  };
+}
+function importToursFromFile(event) {
+  const file = event?.target?.files?.[0];
+  if (!file) return;
+  const mode = pendingImportMode;
+  const reader = new FileReader();
+  reader.onload = () => {
+    runWithSkeleton(() => {
+      try {
+        const data = JSON.parse(String(reader.result || ''));
+        const source = Array.isArray(data) ? data : (Array.isArray(data?.tours) ? data.tours : null);
+        if (!source) { showToast('❌ Format JSON invalide'); return; }
+        const imported = source.map((t, i) => normalizeImportedTour(t, i)).filter(Boolean);
+        if (!imported.length) { showToast('⚠️ Aucun trajet exploitable trouvé'); return; }
+
+        pendingImportBatch = imported;
+        pendingImportFileName = file.name || '';
+        const summary = buildImportPreview(imported, mode);
+        showImportPreview(pendingImportFileName, mode, summary, imported);
+      } catch (e) {
+        showToast('❌ Fichier JSON illisible');
+      }
+    }, 'Analyse du fichier d\'import…');
+  };
+  reader.readAsText(file, 'utf-8');
+}
+function confirmImportTours() {
+  if (!Array.isArray(pendingImportBatch) || !pendingImportBatch.length) {
+    showToast('⚠️ Rien à importer');
+    closePopup('import-preview-popup');
+    return;
+  }
+
+  const mode = pendingImportMode;
+  const imported = pendingImportBatch.map(t => ({ ...t }));
+  const used = new Set((mode === 'replace' ? [] : S.tours).map(t => t.id));
+  imported.forEach(t => {
+    while (used.has(t.id)) t.id = Date.now() + Math.random();
+    used.add(t.id);
+  });
+
+  runWithSkeleton(() => {
+    S.tours = mode === 'replace' ? imported : [...imported, ...S.tours];
+    saveTours();
+    renderHomeList();
+
+    const count = imported.length;
+    cancelImportPreview();
+    showToast(`✅ ${count} tournée(s) importée(s) (${mode==='replace'?'remplacement':'fusion'})`);
+  }, 'Import des tournées…');
+}
+function exportTours() {
+  if (!S.tours.length) { showToast('⚠️ Aucune tournée à exporter'); return; }
+  runWithSkeleton(() => {
+    const payload = { version: 1, exportedAt: new Date().toISOString(), tours: S.tours };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    a.href = url;
+    a.download = `mes-tournees-${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('⬇️ Export terminé');
+  }, 'Génération export JSON…');
+}
+function csvCell(v) {
+  const s = String(v ?? '');
+  return `"${s.replace(/"/g, '""')}"`;
+}
+function exportToursCsv() {
+  if (!S.tours.length) { showToast('⚠️ Aucune tournée à exporter'); return; }
+  runWithSkeleton(() => {
+    const lines = [
+      ['tour_id','nom_tournee','date','depart','ordre_etape','etape','note','lat','lng','distance_km','duree_estimee_min']
+        .map(csvCell).join(';')
+    ];
+    S.tours.forEach(t => {
+      const stats = getRouteStats(t);
+      if (!Array.isArray(t.stops) || !t.stops.length) {
+        lines.push([
+          t.id, t.name, t.date || '', t.departure?.name || '', '', '', '', '', '',
+          stats ? stats.distanceKm.toFixed(2) : '', stats ? Math.round(stats.durationMin) : ''
+        ].map(csvCell).join(';'));
+        return;
+      }
+      t.stops.forEach((s, idx) => {
+        lines.push([
+          t.id,
+          t.name,
+          t.date || '',
+          t.departure?.name || '',
+          idx + 1,
+          s.name || '',
+          s.notes || '',
+          Number(s.lat),
+          Number(s.lng),
+          stats ? stats.distanceKm.toFixed(2) : '',
+          stats ? Math.round(stats.durationMin) : ''
+        ].map(csvCell).join(';'));
+      });
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    a.href = url;
+    a.download = `mes-tournees-${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('📄 Export CSV terminé');
+  }, 'Génération export CSV…');
+}
+
+// ═══════════ GEOCODING (Nominatim / OpenStreetMap) ═══════════
+const GEO_BASE = 'https://nominatim.openstreetmap.org';
+
+async function fetchJson(url, timeoutMs = 9000) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, {
+      headers: { 'Accept': 'application/json' },
+      signal: ctl.signal
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch (e) {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function pickDisplayName(entry, fallback = 'Lieu') {
+  if (!entry) return fallback;
+  if (entry.display_name) {
+    const first = String(entry.display_name).split(',')[0].trim();
+    if (first) return first;
+  }
+  return entry.name || entry.town || entry.village || entry.city || fallback;
+}
+
+async function geocode(city) {
+  const q = encodeURIComponent(`${city}, France`);
+  const url = `${GEO_BASE}/search?format=jsonv2&limit=1&countrycodes=fr&accept-language=fr&q=${q}`;
+  const data = await fetchJson(url);
+  if (!Array.isArray(data) || !data.length) return null;
+
+  const p = data[0];
+  const lat = Number(p.lat);
+  const lng = Number(p.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  return { name: pickDisplayName(p, city), lat, lng };
+}
+
+async function reverseGeocode(lat, lng) {
+  const url = `${GEO_BASE}/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&accept-language=fr`;
+  const data = await fetchJson(url);
+  if (!data) return { name: 'Lieu sélectionné', lat, lng };
+
+  const addr = data.address || {};
+  const name = addr.city || addr.town || addr.village || addr.municipality || pickDisplayName(data, 'Lieu sélectionné');
+  return { name, lat, lng };
+}
+
+// ═══════════ NAVIGATION ═══════════
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById(id+'-view').classList.add('active');
+  document.getElementById('action-bar').classList.toggle('visible', id==='editor');
+}
+function syncAddModeButton() {
+  const btn=document.getElementById('add-mode-btn');
+  if(!btn) return;
+  btn.classList.toggle('active',S.addMode);
+  btn.textContent=S.addMode?'✋ Ajout actif':'📍 Mode ajout';
+}
+function goHome() { S.current=null; S.addMode=false; syncAddModeButton(); renderHomeList(); showView('home'); }
+function newTour() { S.current=ensureTourDefaults({id:Date.now(),name:'',departure:null,stops:[]}); openEditor(); }
+function openTour(id) {
+  const t=S.tours.find(x=>x.id===id); if(!t) return;
+  S.current=ensureTourDefaults(JSON.parse(JSON.stringify(t))); openEditor();
+}
+function openEditor() {
+  showView('editor');
+  ensureTourDefaults(S.current);
+  S.addMode=false;
+  syncAddModeButton();
+  renderRouteOptions();
+  document.getElementById('tour-name-input').value=S.current.name;
+  renderDepDisplay(); renderStopsList(); switchTab('list');
+}
+
+function renderRouteOptions() {
+  ensureTourDefaults(S.current);
+  const swReturn = document.getElementById('route-return-switch');
+  const swAvoid = document.getElementById('route-avoid-motorways-switch');
+  if (swReturn) swReturn.checked = !!S.current?.options?.returnToStart;
+  if (swAvoid) swAvoid.checked = !!S.current?.options?.avoidMotorways;
+}
+function updateRouteOption(key, value) {
+  if (!S.current) return;
+  ensureTourDefaults(S.current);
+  if (!(key in DEFAULT_OPTIONS)) return;
+  S.current.options[key] = !!value;
+  renderRouteStats();
+  updateMapMarkers();
+}
+
+// ═══════════ TABS ═══════════
+function switchTab(tab) {
+  ['list','map'].forEach(t=>{
+    document.getElementById(t+'-tab').classList.toggle('active',t===tab);
+    document.getElementById('tab-'+t+'-btn').classList.toggle('active',t===tab);
+  });
+  const pane=document.getElementById(tab+'-tab');
+  pane.classList.remove('tab-enter');
+  void pane.offsetWidth;
+  pane.classList.add('tab-enter');
+  setTimeout(()=>pane.classList.remove('tab-enter'),260);
+  if(tab==='map') {
+    setTimeout(()=>{ if(!S.map) initMap(); else S.map.invalidateSize(); updateMapMarkers(); }, 100);
+  }
+}
+
+// ═══════════ DEPARTURE ═══════════
+async function setDeparture() {
+  const val=document.getElementById('departure-input').value.trim();
+  if(!val){ showToast('⚠️ Entrez un nom de ville'); return; }
+  showLoading('Recherche de '+val+'…');
+  const loc=await geocode(val); hideLoading();
+  if(!loc){ showToast('❌ Ville non trouvée, réessayez'); return; }
+  S.current.departure=loc;
+  document.getElementById('departure-input').value='';
+  renderDepDisplay(); updateMapMarkers();
+  renderRouteStats();
+  showToast('✅ Départ : '+loc.name);
+}
+function renderDepDisplay() {
+  const el=document.getElementById('dep-display');
+  if(S.current.departure){ el.className='dep-display'; el.textContent='🚀 '+S.current.departure.name; }
+  else { el.className='dep-display empty'; el.textContent='Aucun départ défini'; }
+}
+
+// ═══════════ STOPS ═══════════
+async function addStopBySearch() {
+  const val=document.getElementById('stop-input').value.trim();
+  if(!val){ showToast('⚠️ Entrez un nom de ville'); return; }
+  showLoading('Recherche de '+val+'…');
+  const loc=await geocode(val); hideLoading();
+  if(!loc){ showToast('❌ Ville non trouvée, réessayez'); return; }
+  addStop(loc);
+  document.getElementById('stop-input').value='';
+}
+function addStop(loc,notes='') {
+  S.current.stops.push({id:Date.now()+Math.random(),name:loc.name,lat:loc.lat,lng:loc.lng,notes});
+  renderStopsList(); updateMapMarkers();
+  showToast('✅ '+loc.name+' ajouté');
+}
+function removeStop(id) { S.current.stops=S.current.stops.filter(s=>s.id!==id); renderStopsList(); updateMapMarkers(); }
+function moveStop(id,dir) {
+  const i=S.current.stops.findIndex(s=>s.id===id); if(i<0) return;
+  const j=i+dir; if(j<0||j>=S.current.stops.length) return;
+  [S.current.stops[i],S.current.stops[j]]=[S.current.stops[j],S.current.stops[i]];
+  renderStopsList(); updateMapMarkers();
+}
+function updateNote(id,val) { const s=S.current.stops.find(x=>x.id===id); if(s) s.notes=val; }
+
+function renderStopsList() {
+  const list=document.getElementById('stops-list');
+  const stops=S.current.stops;
+  renderRouteStats();
+  document.getElementById('stops-count').textContent=stops.length;
+  if(!stops.length){
+    list.innerHTML=`<div style="text-align:center;padding:32px;color:var(--muted);font-size:.85rem">Aucune étape pour l'instant.<br>Ajoutez une ville ci-dessus.</div>`;
+    return;
+  }
+  list.innerHTML=stops.map((s,i)=>`
+    <div class="stop-item reveal" style="animation-delay:${Math.min(i,8)*45}ms">
+      <div class="stop-top">
+        <div class="stop-badge">${i+1}</div>
+        <div class="stop-name">${esc(s.name)}</div>
+        <div class="stop-actions">
+          <button class="stop-btn" onclick="moveStop(${s.id},-1)">↑</button>
+          <button class="stop-btn" onclick="moveStop(${s.id},1)">↓</button>
+          <button class="stop-btn danger" onclick="removeStop(${s.id})">✕</button>
+        </div>
+      </div>
+      <input type="text" class="note-input" placeholder="Note : client, adresse, téléphone…"
+        value="${esc(s.notes)}" oninput="updateNote(${s.id},this.value)">
+    </div>`).join('');
+}
+
+// ═══════════ OPTIMIZE ═══════════
+function dist(a,b){
+  const R=6371,r=Math.PI/180,dLat=(b.lat-a.lat)*r,dLng=(b.lng-a.lng)*r;
+  const x=Math.sin(dLat/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
+}
+function computeStopsPathDistance(stops, departure, returnToStart = false) {
+  if (!Array.isArray(stops) || !stops.length || !departure) return 0;
+  let total = 0;
+  let prev = departure;
+  stops.forEach(s => { total += dist(prev, s); prev = s; });
+  if (returnToStart) total += dist(prev, departure);
+  return total;
+}
+function nextTick() { return new Promise(resolve => setTimeout(resolve, 0)); }
+async function doOptimize() {
+  if(!S.current.departure){ showToast("⚠️ Définissez d'abord un point de départ"); return; }
+  if(S.current.stops.length<2){ showToast('⚠️ Ajoutez au moins 2 étapes'); return; }
+
+  const before = getRouteStats(S.current)?.distanceKm || 0;
+  const total = S.current.stops.length;
+  showLoading(`Optimisation en cours… 0%`);
+
+  let rem=[...S.current.stops], greedy=[], cur=S.current.departure;
+  let greedyCount = 0;
+  while(rem.length){
+    let minD=Infinity,idx=0;
+    rem.forEach((s,i)=>{ const d=dist(cur,s); if(d<minD){minD=d;idx=i;} });
+    greedy.push(rem[idx]);
+    cur=rem[idx];
+    rem.splice(idx,1);
+    greedyCount++;
+    if(greedyCount % 4 === 0 || greedyCount === total){
+      const pct = Math.min(35, Math.round((greedyCount / total) * 35));
+      showLoading(`Optimisation en cours… ${pct}%`);
+      await nextTick();
+    }
+  }
+
+  const returnToStart = !!S.current?.options?.returnToStart;
+  let best=[...greedy], bestDist=computeStopsPathDistance(best, S.current.departure, returnToStart);
+
+  let improved = true;
+  let pass = 0;
+  while(improved && pass < 8){
+    improved = false;
+    pass++;
+    showLoading(`Optimisation en cours… ${35 + Math.round((pass / 8) * 60)}%`);
+    await nextTick();
+    for(let i=0;i<best.length-1;i++){
+      for(let k=i+1;k<best.length;k++){
+        const cand = best.slice(0,i).concat(best.slice(i,k+1).reverse(), best.slice(k+1));
+        const candDist = computeStopsPathDistance(cand, S.current.departure, returnToStart);
+        if(candDist + 0.0001 < bestDist){
+          best = cand;
+          bestDist = candDist;
+          improved = true;
+        }
+      }
+    }
+  }
+
+  showLoading('Optimisation en cours… 100%');
+  S.current.stops=best; renderStopsList(); updateMapMarkers();
+  const after = getRouteStats(S.current)?.distanceKm || 0;
+  const gain = Math.max(0, before - after);
+  hideLoading();
+  if(gain > 0.05) showToast(`⚡ Optimisé : -${formatKm(gain)} (${Math.round((gain/Math.max(before,0.001))*100)}%)`);
+  else showToast('⚡ Ordre optimisé !');
+}
+
+// ═══════════ SAVE / DELETE ═══════════
+function saveTour() {
+  const name=document.getElementById('tour-name-input').value.trim();
+  if(!name){ showToast('⚠️ Donnez un nom à la tournée'); return; }
+  if(!S.current.departure){ showToast('⚠️ Définissez un point de départ'); return; }
+  if(!S.current.stops.length){ showToast('⚠️ Ajoutez au moins une étape'); return; }
+  S.current.name=name; S.current.date=new Date().toLocaleDateString('fr-FR');
+  const idx=S.tours.findIndex(t=>t.id===S.current.id);
+  const copy=JSON.parse(JSON.stringify(S.current));
+  if(idx>=0) S.tours[idx]=copy; else S.tours.unshift(copy);
+  saveTours(); showToast('💾 Tournée sauvegardée !');
+}
+function deleteTour(id,e) {
+  e.stopPropagation();
+  if(!confirm('Supprimer cette tournée ?')) return;
+  S.tours=S.tours.filter(t=>t.id!==id); saveTours(); renderHomeList();
+}
+
+// ═══════════ HOME ═══════════
+function renderHomeList() {
+  const el=document.getElementById('tours-list');
+  if(!S.tours.length){
+    el.innerHTML=`<div class="empty-state"><div class="icon">🗺️</div>
+      <p>Aucune tournée enregistrée.<br>Appuyez sur <b style="color:var(--accent)">+</b> pour créer votre première tournée.</p></div>`;
+    return;
+  }
+  el.innerHTML=S.tours.map((t,i)=>`
+    <div class="tour-card reveal" style="animation-delay:${Math.min(i,8)*45}ms" onclick="openTour(${t.id})">
+      <div class="tour-icon">🚗</div>
+      <div class="tour-info">
+        <h3>${esc(t.name)}</h3>
+        <p>${buildTourMeta(t)}</p>
+      </div>
+      <button class="tour-del" onclick="deleteTour(${t.id},event)">🗑️</button>
+    </div>`).join('');
+}
+function buildTourMeta(t) {
+  const base = `${t.date||''} · ${t.stops.length} étape${t.stops.length>1?'s':''} · Départ : ${esc(t.departure?.name||'?')}`;
+  const stats = getRouteStats(t);
+  if (!stats) return base;
+  return `${base} · ${formatKm(stats.distanceKm)} · ${formatDuration(stats.durationMin)}`;
+}
+
+// ═══════════ MAP ═══════════
+function initMap() {
+  if(S.map) return;
+  S.map=L.map('map',{zoomControl:false}).setView([48.0,-1.8],8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'© OpenStreetMap', maxZoom:18
+  }).addTo(S.map);
+  L.control.zoom({position:'bottomright'}).addTo(S.map);
+  S.map.on('click',onMapClick);
+}
+
+function makeIcon(label) {
+  const bg=label==='🚀'?'#FFB800':'#FF8C00';
+  return L.divIcon({
+    html:`<div style="background:${bg};color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-family:Outfit,sans-serif;font-weight:800;font-size:13px;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,.5)">${label}</div>`,
+    iconSize:[34,34],iconAnchor:[17,17],className:''
+  });
+}
+
+async function fetchRoadRoute(points, options = {}) {
+  if (!Array.isArray(points) || points.length < 2) return null;
+  const coords = points.map(p => `${p[1]},${p[0]}`).join(';');
+  const qs = new URLSearchParams({ overview: 'full', geometries: 'geojson', steps: 'false' });
+  if (options?.avoidMotorways) qs.set('exclude', 'motorway');
+  const url = `https://router.project-osrm.org/route/v1/driving/${coords}?${qs.toString()}`;
+  try {
+    const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!r.ok) return null;
+    const data = await r.json();
+    const route = data?.routes?.[0]?.geometry?.coordinates;
+    if (!Array.isArray(route) || route.length < 2) return null;
+    return route.map(c => [c[1], c[0]]);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function updateMapMarkers() {
+  if(!S.map) return;
+  const reqId = ++S.routeReqId;
+  S.markers.forEach(m=>S.map.removeLayer(m)); S.markers=[];
+  if(S.polyline){ S.map.removeLayer(S.polyline); S.polyline=null; }
+  if(!S.current) return;
+  const {departure,stops}=S.current, pts=[];
+  if(departure){
+    const m=L.marker([departure.lat,departure.lng],{icon:makeIcon('🚀')}).addTo(S.map).bindPopup(`<b>Départ</b><br>${esc(departure.name)}`);
+    S.markers.push(m); pts.push([departure.lat,departure.lng]);
+  }
+  stops.forEach((s,i)=>{
+    const m=L.marker([s.lat,s.lng],{icon:makeIcon(i+1)}).addTo(S.map).bindPopup(`<b>Étape ${i+1}</b><br>${esc(s.name)}${s.notes?`<br><i style="color:#aaa">${esc(s.notes)}</i>`:''}`);
+    S.markers.push(m); pts.push([s.lat,s.lng]);
+  });
+  if (departure && stops.length && S.current?.options?.returnToStart) {
+    pts.push([departure.lat, departure.lng]);
+  }
+  if(pts.length>=2){
+    const roadPts = await fetchRoadRoute(pts, S.current?.options || DEFAULT_OPTIONS);
+    if (reqId !== S.routeReqId || !S.map) return;
+    const drawPts = Array.isArray(roadPts) && roadPts.length > 1 ? roadPts : pts;
+    const lineStyle = Array.isArray(roadPts) && roadPts.length > 1
+      ? {color:'#0d6efd',weight:4,opacity:.88}
+      : {color:'#FF8C00',weight:3.5,opacity:.8,dashArray:'10,8'};
+    S.polyline=L.polyline(drawPts,lineStyle).addTo(S.map);
+    S.map.fitBounds(S.polyline.getBounds(),{padding:[50,50]});
+  } else if(pts.length===1) S.map.setView(pts[0],12);
+}
+
+function fitMapBounds(){ updateMapMarkers(); }
+
+function toggleAddMode(){
+  S.addMode=!S.addMode;
+  syncAddModeButton();
+  if(S.addMode) showToast('Cliquez sur la carte pour ajouter une étape');
+}
+
+async function onMapClick(e){
+  if(!S.addMode) return;
+  showLoading('Identification du lieu…');
+  const loc=await reverseGeocode(e.latlng.lat,e.latlng.lng); hideLoading();
+  S.pendingLoc=loc;
+  document.getElementById('confirm-city-name').textContent='📍 '+loc.name;
+  document.getElementById('confirm-popup').classList.add('show');
+}
+function confirmAddFromMap(){ closePopup('confirm-popup'); if(S.pendingLoc){addStop(S.pendingLoc);S.pendingLoc=null;} }
+
+// ═══════════ NAV URLS ═══════════
+function buildGoogleMapsUrl(){
+  if(!S.current?.departure) return null;
+  const seq=[S.current.departure,...S.current.stops];
+  if (S.current?.stops?.length && S.current?.options?.returnToStart) seq.push(S.current.departure);
+  const pts=seq.map(p=>`${p.lat},${p.lng}`).join('/');
+  const avoid = S.current?.options?.avoidMotorways ? '?avoid=highways' : '';
+  return `https://www.google.com/maps/dir/${pts}${avoid}`;
+}
+function openGoogleMaps(){
+  if(!S.current?.stops?.length){ showToast("⚠️ Ajoutez des étapes d'abord"); return; }
+  const url=buildGoogleMapsUrl();
+  if(!url){ showToast('⚠️ Définissez un point de départ'); return; }
+  window.open(url,'_blank');
+}
+function openWaze(){
+  if(!S.current?.stops?.length){ showToast("⚠️ Ajoutez des étapes d'abord"); return; }
+  const first=S.current.stops[0];
+  window.open(`https://waze.com/ul?ll=${first.lat},${first.lng}&navigate=yes`,'_blank');
+  if(S.current.stops.length>1) showToast('Waze : seule la 1ère étape est ouverte (limitation)');
+}
+
+// ═══════════ SHARE ═══════════
+function buildShareText(){
+  if(!S.current) return '';
+  const {name,departure,stops}=S.current;
+  let txt=`🚗 TOURNÉE : ${name}\n━━━━━━━━━━━━━━━━━\n🚀 Départ : ${departure?.name||'?'}\n`;
+  if (S.current?.options?.returnToStart) txt += `🔁 Retour au dépôt : activé\n`;
+  if (S.current?.options?.avoidMotorways) txt += `🛣️ Autoroutes : évitées\n`;
+  const stats = getRouteStats(S.current);
+  if(stats){
+    txt+=`📏 Distance estimée : ${formatKm(stats.distanceKm)}\n`;
+    txt+=`⏱️ Temps estimé : ${formatDuration(stats.durationMin)}\n`;
+  }
+  stops.forEach((s,i)=>{ txt+=`${i+1}. ${s.name}`; if(s.notes) txt+=` — ${s.notes}`; txt+='\n'; });
+  txt+=`━━━━━━━━━━━━━━━━━\n`;
+  const url=buildGoogleMapsUrl();
+  if(url) txt+=`📍 Google Maps :\n${url}`;
+  return txt;
+}
+function openSharePopup(){
+  if(!S.current?.stops?.length){ showToast("⚠️ Ajoutez des étapes d'abord"); return; }
+  document.getElementById('share-popup').classList.add('show');
+}
+function shareViaSMS(){ closePopup('share-popup'); window.open(`sms:?body=${encodeURIComponent(buildShareText())}`); }
+function shareViaEmail(){ closePopup('share-popup'); window.open(`mailto:?subject=${encodeURIComponent('Tournée : '+(S.current?.name||''))}&body=${encodeURIComponent(buildShareText())}`); }
+async function copyShareText(){
+  closePopup('share-popup');
+  const txt=buildShareText();
+  try{ await navigator.clipboard.writeText(txt); }
+  catch(e){ const ta=document.createElement('textarea'); ta.value=txt; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); }
+  showToast('📋 Texte copié !');
+}
+
+// ═══════════ HELPERS ═══════════
+let toastTimer;
+function showToast(msg){
+  const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),3200);
+}
+function showLoading(msg='Chargement…'){ document.getElementById('loading-text').textContent=msg; document.getElementById('loading-overlay').classList.add('show'); }
+function hideLoading(){ document.getElementById('loading-overlay').classList.remove('show'); }
+function showSkeleton(msg='Traitement en cours…'){
+  const text=document.getElementById('skeleton-text');
+  if(text) text.textContent=msg;
+  document.getElementById('skeleton-overlay').classList.add('show');
+}
+function hideSkeleton(){ document.getElementById('skeleton-overlay').classList.remove('show'); }
+function runWithSkeleton(action,msg='Traitement en cours…',delay=140){
+  showSkeleton(msg);
+  setTimeout(()=>{
+    try{ action(); }
+    finally{ hideSkeleton(); }
+  },delay);
+}
+function closePopup(id){ document.getElementById(id).classList.remove('show'); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function setTheme(theme){
+  const t = theme === 'light' ? 'light' : 'dark';
+  document.body.classList.toggle('theme-light', t === 'light');
+  localStorage.setItem(THEME_KEY, t);
+  const metaTheme=document.querySelector('meta[name="theme-color"]');
+  if(metaTheme) metaTheme.setAttribute('content', t === 'light' ? '#dce9ff' : '#0d6efd');
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = t === 'light' ? '🌤️' : '🌙';
+}
+function toggleTheme(){
+  const current = document.body.classList.contains('theme-light') ? 'light' : 'dark';
+  setTheme(current === 'light' ? 'dark' : 'light');
+}
+function loadTheme(){ setTheme(localStorage.getItem(THEME_KEY) || 'dark'); }
+function bootSplash(){
+  const el=document.getElementById('splash-screen');
+  if(!el) return;
+  setTimeout(()=>{
+    el.classList.add('hide');
+    setTimeout(()=>{ el.style.display='none'; },420);
+  },900);
+}
+function maybeShowOnboarding(){
+  const seen = localStorage.getItem(ONBOARD_KEY) === '1';
+  if(seen) return;
+  const el=document.getElementById('onboarding-overlay');
+  if(!el) return;
+  setTimeout(()=>el.classList.add('show'), 980);
+}
+function openOnboarding(){
+  const el=document.getElementById('onboarding-overlay');
+  if(!el) return;
+  el.classList.add('show');
+}
+function closeOnboarding(markDone){
+  const el=document.getElementById('onboarding-overlay');
+  if(!el) return;
+  el.classList.remove('show');
+  if(markDone) localStorage.setItem(ONBOARD_KEY, '1');
+}
+
+// ═══════════ BOOT ═══════════
+loadTheme();
+loadTours();
+renderHomeList();
+bootSplash();
+maybeShowOnboarding();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

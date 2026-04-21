@@ -1,0 +1,26 @@
+{
+  "name": "RoutePilot Pro",
+  "short_name": "RoutePilot",
+  "description": "Planification intelligente des tournees terrain",
+  "lang": "fr",
+  "start_url": "./mes_tournees%20(1).html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1220",
+  "theme_color": "#0d6efd",
+  "icons": [
+    {
+      "src": "./routepilot-icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./routepilot-icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
