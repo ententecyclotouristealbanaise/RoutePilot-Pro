@@ -20,7 +20,7 @@
       --bg:#0a1220; --surface:#121b2d; --card:#162238; --card2:#1d2c46;
       --accent:#0d6efd; --accent-soft:rgba(13,110,253,.18);
       --text:#edf3ff; --muted:#9fb0cf; --border:rgba(255,255,255,.10);
-      --danger:#FF453A; --maps:#1A73E8; --waze:#00B4E4;
+      --danger:#FF453A; --maps:#1A73E8;
       --r:16px; --rs:10px;
     }
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -120,7 +120,6 @@
     .action-btn:active{transform:scale(.95)}
     .action-btn .icon{font-size:1.3rem}
     .action-btn.maps{background:linear-gradient(135deg,#1a73e8,#2f8dff);color:#fff}
-    .action-btn.waze{background:var(--waze);color:#fff}
     .action-btn.share{background:var(--card2);color:var(--text);border:1px solid var(--border)}
 
     /* TOAST */
@@ -326,7 +325,6 @@
 <!-- Action Bar -->
 <div class="action-bar" id="action-bar">
   <button class="action-btn maps" onclick="openGoogleMaps()"><span class="icon">🗺️</span>Google Maps</button>
-  <button class="action-btn waze" onclick="openWaze()"><span class="icon">🚦</span>Waze</button>
   <button class="action-btn share" onclick="openSharePopup()"><span class="icon">📤</span>Partager</button>
 </div>
 
@@ -1062,12 +1060,6 @@ function openGoogleMaps(){
   const url=buildGoogleMapsUrl();
   if(!url){ showToast('⚠️ Définissez un point de départ'); return; }
   window.open(url,'_blank');
-}
-function openWaze(){
-  if(!S.current?.stops?.length){ showToast("⚠️ Ajoutez des étapes d'abord"); return; }
-  const first=S.current.stops[0];
-  window.open(`https://waze.com/ul?ll=${first.lat},${first.lng}&navigate=yes`,'_blank');
-  if(S.current.stops.length>1) showToast('Waze : seule la 1ère étape est ouverte (limitation)');
 }
 
 // ═══════════ SHARE ═══════════
