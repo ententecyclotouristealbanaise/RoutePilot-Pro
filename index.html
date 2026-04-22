@@ -113,14 +113,14 @@
     /* MAP TAB */
     #map-tab{position:relative}
     #map{position:absolute;top:0;left:0;right:0;bottom:0}
-    .map-search{position:absolute;top:10px;left:10px;z-index:1100;width:min(420px,calc(100vw - 84px))}
+    .map-search{position:absolute;top:10px;left:10px;right:162px;z-index:1100;width:auto;max-width:420px}
     .map-search input{width:100%;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:10px 12px;font-size:.85rem;outline:none;box-shadow:0 2px 8px rgba(0,0,0,.25)}
     .map-search input:focus{border-color:var(--accent)}
     .map-suggest{margin-top:6px;max-height:240px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 24px rgba(0,0,0,.32)}
     .map-suggest-item{display:block;width:100%;text-align:left;background:none;border:none;color:var(--text);padding:10px 12px;font-size:.82rem;cursor:pointer;border-bottom:1px solid var(--border)}
     .map-suggest-item:last-child{border-bottom:none}
     .map-suggest-item:hover{background:var(--card2)}
-    .map-toolbar{position:absolute;top:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:7px}
+    .map-toolbar{position:absolute;top:10px;right:10px;z-index:1000;display:flex;flex-direction:column;gap:7px;min-width:142px}
     .map-btn{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:9px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:5px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
     .map-btn.active{background:#0d6efd;border-color:#0d6efd;color:#fff}
 
@@ -218,6 +218,12 @@
       .stop-item{padding:13px 14px}
       .popup{max-width:640px}
       .action-bar{left:50%;transform:translateX(-50%);max-width:760px;border-radius:14px 14px 0 0}
+    }
+
+    @media (max-width: 767px){
+      .map-search{top:calc(10px + env(safe-area-inset-top));right:170px;max-width:none}
+      .map-toolbar{top:calc(10px + env(safe-area-inset-top));min-width:150px}
+      .map-btn{padding:9px 10px;font-size:.75rem}
     }
 
     @media (min-width: 1100px){
@@ -418,6 +424,7 @@
     <div class="share-opts">
       <button class="share-opt" style="background:#30D158" onclick="shareViaSMS()">💬 Envoyer par SMS</button>
       <button class="share-opt" style="background:#1A73E8" onclick="shareViaEmail()">✉️ Envoyer par Email</button>
+      <button class="share-opt" style="background:#0d6efd" onclick="copyGoogleMapsLink()">🗺️ Copier le lien Google Maps</button>
       <button class="share-opt" style="background:#5856D6" onclick="copyShareText()">📋 Copier le texte</button>
     </div>
     <button class="popup-btn cancel" style="margin-top:12px;width:100%" onclick="closePopup('share-popup')">Fermer</button>
@@ -1310,17 +1317,22 @@ function confirmAddFromMap(){ closePopup('confirm-popup'); if(S.pendingLoc){addS
 
 // ═══════════ NAV URLS ═══════════
 function buildGoogleMapsUrl(){
-  if(!S.current?.departure) return null;
-  const seq=[S.current.departure,...S.current.stops];
-  if (S.current?.stops?.length && S.current?.options?.returnToStart) seq.push(S.current.departure);
+  if(!S.current) return null;
+  const hasCoords = (p) => Number.isFinite(p?.lat) && Number.isFinite(p?.lng);
+  const dep = hasCoords(S.current.departure) ? S.current.departure : null;
+  const stops = (S.current.stops || []).filter(hasCoords);
+  const seq = dep ? [dep, ...stops] : [...stops];
+  if(!seq.length) return null;
+  if(seq.length === 1) return `https://www.google.com/maps/search/?api=1&query=${seq[0].lat},${seq[0].lng}`;
+  if (dep && stops.length && S.current?.options?.returnToStart) seq.push(dep);
   const pts=seq.map(p=>`${p.lat},${p.lng}`).join('/');
   const avoid = S.current?.options?.avoidMotorways ? '?avoid=highways' : '';
   return `https://www.google.com/maps/dir/${pts}${avoid}`;
 }
 function openGoogleMaps(){
-  if(!S.current?.stops?.length){ showToast("⚠️ Ajoutez des étapes d'abord"); return; }
+  if(!S.current?.stops?.length && !S.current?.departure){ showToast("⚠️ Ajoutez des étapes d'abord"); return; }
   const url=buildGoogleMapsUrl();
-  if(!url){ showToast('⚠️ Définissez un point de départ'); return; }
+  if(!url){ showToast('⚠️ Lien Google Maps indisponible'); return; }
   window.open(url,'_blank');
 }
 
@@ -1348,6 +1360,21 @@ function openSharePopup(){
 }
 function shareViaSMS(){ closePopup('share-popup'); window.open(`sms:?body=${encodeURIComponent(buildShareText())}`); }
 function shareViaEmail(){ closePopup('share-popup'); window.open(`mailto:?subject=${encodeURIComponent('Tournée : '+(S.current?.name||''))}&body=${encodeURIComponent(buildShareText())}`); }
+async function copyGoogleMapsLink(){
+  closePopup('share-popup');
+  const url = buildGoogleMapsUrl();
+  if(!url){ showToast('⚠️ Lien Google Maps indisponible'); return; }
+  try{ await navigator.clipboard.writeText(url); }
+  catch(e){
+    const ta=document.createElement('textarea');
+    ta.value=url;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  showToast('🗺️ Lien Google Maps copié !');
+}
 async function copyShareText(){
   closePopup('share-popup');
   const txt=buildShareText();
