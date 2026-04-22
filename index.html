@@ -496,6 +496,8 @@ const ONBOARD_KEY = 'rp_onboard_done_v1';
 const DEFAULT_OPTIONS = { returnToStart:false, avoidMotorways:false };
 let mapSearchTimer = null;
 let listSearchTimer = null;
+
+let mapWheelPanBound = false;
 let pendingImportMode = 'merge';
 let pendingImportBatch = null;
 let pendingImportFileName = '';
@@ -1209,12 +1211,29 @@ function buildTourMeta(t) {
 // ═══════════ MAP ═══════════
 function initMap() {
   if(S.map) return;
-  S.map=L.map('map',{zoomControl:false}).setView([48.0,-1.8],8);
+  S.map=L.map('map',{zoomControl:false,scrollWheelZoom:false}).setView([48.0,-1.8],8);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap', maxZoom:18
   }).addTo(S.map);
   L.control.zoom({position:'bottomright'}).addTo(S.map);
+  bindMapWheelPan();
   S.map.on('click',onMapClick);
+}
+
+function bindMapWheelPan(){
+  if(!S.map || mapWheelPanBound) return;
+  const container = S.map.getContainer();
+  if(!container) return;
+  container.addEventListener('wheel', (e) => {
+    // Permet de "défiler" la carte à la molette/trackpad.
+    if(!S.map) return;
+    e.preventDefault();
+    const factor = 0.85;
+    const dx = (e.deltaX || 0) * factor;
+    const dy = (e.deltaY || 0) * factor;
+    S.map.panBy([dx, dy], { animate: false });
+  }, { passive: false });
+  mapWheelPanBound = true;
 }
 
 function makeIcon(label) {
@@ -1276,7 +1295,10 @@ async function updateMapMarkers() {
       ? {color:'#0d6efd',weight:4,opacity:.88}
       : {color:'#FF8C00',weight:3.5,opacity:.8,dashArray:'10,8'};
     S.polyline=L.polyline(drawPts,lineStyle).addTo(S.map);
-    S.map.fitBounds(S.polyline.getBounds(),{padding:[50,50]});
+    S.map.fitBounds(S.polyline.getBounds(),{
+      paddingTopLeft:[50,50],
+      paddingBottomRight:[50,160]
+    });
   } else if(pts.length===1) S.map.setView(pts[0],12);
 }
 
