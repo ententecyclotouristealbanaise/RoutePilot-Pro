@@ -243,6 +243,11 @@ body.theme-dark {
   transition: all 0.16s ease;
 }
 
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--rp-primary) 55%, white);
+  outline-offset: 2px;
+}
+
 .btn:disabled {
   cursor: wait;
 }

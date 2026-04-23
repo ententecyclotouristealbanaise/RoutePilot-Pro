@@ -255,8 +255,14 @@ function renderTourList() {
     node.querySelector("[data-role='tour-name']").textContent = tour.name;
     node.querySelector("[data-role='tour-meta']").textContent =
       `${tour.stops.length} etape(s) | ${formatKm(stats.distance)} | ${new Date(tour.updatedAt).toLocaleDateString("fr-FR")}`;
+    node.setAttribute("aria-label", `Ouvrir la tournee ${tour.name}`);
 
     node.querySelector("[data-role='open-tour']").addEventListener("click", () => setSelectedTour(tour.id));
+    node.querySelector("[data-role='open-tour']").addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      setSelectedTour(tour.id);
+    });
     node.querySelector("[data-role='delete-tour']").addEventListener("click", (e) => {
       e.stopPropagation();
       removeTour(tour.id);
@@ -419,6 +425,8 @@ function buildSuggest(containerId, items, onPick) {
   items.forEach((item) => {
     const b = document.createElement("button");
     b.type = "button";
+    b.setAttribute("role", "option");
+    b.setAttribute("aria-label", item.label);
     b.textContent = item.label;
     b.addEventListener("click", () => {
       onPick(item);
