@@ -1,0 +1,318 @@
+:root {
+  --rp-bg: #f3f5f9;
+  --rp-surface: #ffffff;
+  --rp-surface-2: #eef2fb;
+  --rp-border: #d9e1f2;
+  --rp-text: #15213a;
+  --rp-muted: #5d6d8a;
+  --rp-primary: #0d6efd;
+  --rp-primary-2: #3a8bff;
+  --rp-success: #198754;
+  --rp-warning: #ffc107;
+  --rp-danger: #dc3545;
+  --rp-shadow: 0 16px 35px rgba(23, 43, 77, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--rp-text);
+  font-family: "DM Sans", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(1100px 550px at 8% -15%, #c7dcff 0%, transparent 60%),
+    radial-gradient(1000px 500px at 100% 0%, #f6d9b8 0%, transparent 55%),
+    var(--rp-bg);
+}
+
+body.theme-dark {
+  --rp-bg: #0d1628;
+  --rp-surface: #16223a;
+  --rp-surface-2: #1e2d4b;
+  --rp-border: #334767;
+  --rp-text: #eaf1ff;
+  --rp-muted: #aab7d0;
+  --rp-primary: #4e95ff;
+  --rp-primary-2: #7fb4ff;
+  --rp-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  background:
+    radial-gradient(900px 450px at 0% -20%, #1c3460 0%, transparent 60%),
+    radial-gradient(900px 500px at 100% -10%, #4d2a24 0%, transparent 60%),
+    var(--rp-bg);
+}
+
+.app-shell {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.rp-navbar {
+  background: color-mix(in srgb, var(--rp-surface) 88%, transparent);
+  border: 1px solid var(--rp-border);
+  border-radius: 1rem;
+  backdrop-filter: blur(6px);
+  box-shadow: var(--rp-shadow);
+}
+
+.brand-title {
+  font-family: "Outfit", "Segoe UI", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.brand-sub {
+  color: var(--rp-muted);
+  font-size: 0.78rem;
+}
+
+.panel {
+  background: var(--rp-surface);
+  border: 1px solid var(--rp-border);
+  border-radius: 1rem;
+  box-shadow: var(--rp-shadow);
+}
+
+.panel-header {
+  padding: 1rem 1rem 0.85rem;
+  border-bottom: 1px solid var(--rp-border);
+}
+
+.panel-body {
+  padding: 1rem;
+}
+
+.tour-list {
+  max-height: 62vh;
+  overflow: auto;
+}
+
+.tour-card {
+  border: 1px solid var(--rp-border);
+  background: var(--rp-surface-2);
+  border-radius: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tour-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(13, 110, 253, 0.16);
+}
+
+.tour-card:active {
+  transform: translateY(0);
+}
+
+.tour-card.active {
+  border-color: var(--rp-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--rp-primary) 20%, transparent);
+}
+
+.route-stats {
+  background: var(--rp-surface-2);
+  border: 1px dashed var(--rp-border);
+  border-radius: 0.9rem;
+  padding: 0.8rem;
+}
+
+.stop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 42vh;
+  overflow: auto;
+}
+
+.stop-item {
+  border: 1px solid var(--rp-border);
+  background: var(--rp-surface-2);
+  border-radius: 0.85rem;
+}
+
+.stop-order {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--rp-primary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.map-wrap {
+  min-height: 420px;
+  border-radius: 0.9rem;
+  overflow: hidden;
+  border: 1px solid var(--rp-border);
+  position: relative;
+}
+
+#map {
+  width: 100%;
+  min-height: 420px;
+}
+
+.map-tools {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  z-index: 800;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.map-tools .btn {
+  font-size: 0.75rem;
+  padding: 0.33rem 0.55rem;
+}
+
+.search-suggest {
+  position: absolute;
+  z-index: 1000;
+  width: 100%;
+  max-height: 220px;
+  overflow: auto;
+  background: var(--rp-surface);
+  border: 1px solid var(--rp-border);
+  border-top: 0;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+.search-suggest button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--rp-border);
+  background: transparent;
+  color: var(--rp-text);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.88rem;
+}
+
+.search-suggest button:hover {
+  background: var(--rp-surface-2);
+}
+
+.rp-toast {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2200;
+  background: var(--rp-surface);
+  border: 1px solid var(--rp-border);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  box-shadow: var(--rp-shadow);
+  font-size: 0.88rem;
+  display: none;
+}
+
+.rp-toast.show {
+  display: block;
+  animation: toastIn 0.2s ease;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.btn,
+.form-control,
+.form-check-input {
+  transition: all 0.16s ease;
+}
+
+.btn:disabled {
+  cursor: wait;
+}
+
+.is-busy::after {
+  content: "";
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  display: inline-block;
+  margin-left: 0.45rem;
+  vertical-align: -0.12rem;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.install-btn {
+  display: none;
+}
+
+.install-btn.show {
+  display: inline-flex;
+}
+
+.offline-badge {
+  font-size: 0.78rem;
+}
+
+@media (max-width: 991.98px) {
+  .tour-list,
+  .stop-list {
+    max-height: none;
+  }
+
+  #map,
+  .map-wrap {
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 575.98px) {
+  .app-shell {
+    padding: 0.65rem;
+  }
+
+  .panel-header,
+  .panel-body {
+    padding-left: 0.8rem;
+    padding-right: 0.8rem;
+  }
+
+  .brand-title {
+    font-size: 1.05rem;
+  }
+}

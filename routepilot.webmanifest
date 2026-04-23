@@ -1,15 +1,16 @@
 {
-  "id": "/RoutePilot-Pro/",
+  "id": "./",
   "name": "RoutePilot Pro",
-  "short_name": "RoutePilot Pro",
-  "description": "Planification intelligente des tournees terrain",
+  "short_name": "RoutePilot",
+  "description": "Application PWA pour creer, optimiser, partager et exporter des tournees terrain.",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#0a1220",
+  "orientation": "portrait-primary",
+  "background_color": "#f3f5f9",
   "theme_color": "#0d6efd",
+  "categories": ["business", "productivity", "maps"],
   "icons": [
     {
       "src": "./routepilot-icon-192.svg",
