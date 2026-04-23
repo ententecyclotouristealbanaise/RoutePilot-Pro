@@ -1865,6 +1865,9 @@ function bootSplash(){
   },900);
 }
 function maybeShowOnboarding(){
+  const standalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+  const iosStandalone = window.navigator && window.navigator.standalone === true;
+  if (standalone || iosStandalone) return;
   const seen = storageGet(ONBOARD_KEY, '0') === '1';
   if(seen) return;
   const el=document.getElementById('onboarding-overlay');
@@ -1889,7 +1892,7 @@ function forceHideSplash(){
   setTimeout(()=>{ el.style.display='none'; },420);
 }
 function clearBootBlockers(){
-  const blockers = ['loading-overlay','skeleton-overlay','confirm-popup','share-popup','import-mode-popup','import-preview-popup','route-recap-popup'];
+  const blockers = ['loading-overlay','skeleton-overlay','confirm-popup','share-popup','import-mode-popup','import-preview-popup','route-recap-popup','onboarding-overlay'];
   blockers.forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('show');
