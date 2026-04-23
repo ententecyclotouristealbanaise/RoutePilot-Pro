@@ -530,6 +530,15 @@ let mapSearchTimer = null;
 const listSearchTimers = { departure:null, stop:null };
 let toursDirHandle = null;
 
+function storageGet(key, fallback = null) {
+  try { return localStorage.getItem(key); }
+  catch (e) { return fallback; }
+}
+function storageSet(key, value) {
+  try { localStorage.setItem(key, value); return true; }
+  catch (e) { return false; }
+}
+
 let mapWheelPanBound = false;
 let pendingImportMode = 'merge';
 let pendingImportBatch = null;
@@ -544,13 +553,13 @@ function ensureTourDefaults(tour) {
 }
 function loadTours() {
   try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+    const raw = JSON.parse(storageGet(STORAGE_KEY, '[]') || '[]');
     S.tours = Array.isArray(raw) ? raw.map(t => ensureTourDefaults(t)) : [];
   } catch(e){
     S.tours=[];
   }
 }
-function saveTours() { localStorage.setItem(STORAGE_KEY, JSON.stringify(S.tours)); }
+function saveTours() { storageSet(STORAGE_KEY, JSON.stringify(S.tours)); }
 
 // ═══════════ FOLDER ACCESS ═══════════
 function supportsFolderAccess() {
@@ -1821,7 +1830,7 @@ function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').repla
 function setTheme(theme){
   const t = theme === 'light' ? 'light' : 'dark';
   document.body.classList.toggle('theme-light', t === 'light');
-  localStorage.setItem(THEME_KEY, t);
+  storageSet(THEME_KEY, t);
   const metaTheme=document.querySelector('meta[name="theme-color"]');
   if(metaTheme) metaTheme.setAttribute('content', t === 'light' ? '#dce9ff' : '#0d6efd');
   const btn = document.getElementById('theme-toggle');
@@ -1831,7 +1840,7 @@ function toggleTheme(){
   const current = document.body.classList.contains('theme-light') ? 'light' : 'dark';
   setTheme(current === 'light' ? 'dark' : 'light');
 }
-function loadTheme(){ setTheme(localStorage.getItem(THEME_KEY) || 'dark'); }
+function loadTheme(){ setTheme(storageGet(THEME_KEY, 'dark') || 'dark'); }
 function bootSplash(){
   const el=document.getElementById('splash-screen');
   if(!el) return;
@@ -1841,7 +1850,7 @@ function bootSplash(){
   },900);
 }
 function maybeShowOnboarding(){
-  const seen = localStorage.getItem(ONBOARD_KEY) === '1';
+  const seen = storageGet(ONBOARD_KEY, '0') === '1';
   if(seen) return;
   const el=document.getElementById('onboarding-overlay');
   if(!el) return;
@@ -1856,7 +1865,13 @@ function closeOnboarding(markDone){
   const el=document.getElementById('onboarding-overlay');
   if(!el) return;
   el.classList.remove('show');
-  if(markDone) localStorage.setItem(ONBOARD_KEY, '1');
+  if(markDone) storageSet(ONBOARD_KEY, '1');
+}
+function forceHideSplash(){
+  const el=document.getElementById('splash-screen');
+  if(!el || el.style.display==='none') return;
+  el.classList.add('hide');
+  setTimeout(()=>{ el.style.display='none'; },420);
 }
 document.addEventListener('click', (e) => {
   const wrap = document.getElementById('map-search-wrap');
@@ -1868,12 +1883,19 @@ document.addEventListener('click', (e) => {
 });
 
 // ═══════════ BOOT ═══════════
-loadTheme();
-loadTours();
-initToursFolder();
-renderHomeList();
-bootSplash();
-maybeShowOnboarding();
+setTimeout(forceHideSplash, 3200);
+try {
+  loadTheme();
+  loadTours();
+  renderHomeList();
+  maybeShowOnboarding();
+} catch (e) {
+  console.error('Boot error', e);
+  showToast('⚠️ Démarrage partiel: vérifiez les permissions du navigateur');
+} finally {
+  bootSplash();
+  initToursFolder().catch(() => {});
+}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
