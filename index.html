@@ -56,6 +56,11 @@
     .tour-info h3{font-family:'Outfit',sans-serif;font-weight:700;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .tour-info p{font-size:.75rem;color:var(--muted);margin-top:3px}
     .tour-del{background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.1rem;padding:8px;flex-shrink:0}
+    .folder-file{background:var(--card);border-radius:var(--r);padding:12px 13px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+    .folder-file-main{min-width:0;flex:1}
+    .folder-file-name{font-size:.87rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .folder-file-meta{margin-top:4px;font-size:.74rem;color:var(--muted)}
+    .folder-file-btn{border:none;cursor:pointer;padding:8px 10px;border-radius:9px;font-family:'Outfit',sans-serif;font-size:.72rem;font-weight:700;color:#fff;background:linear-gradient(135deg,#0d6efd,#3da6ff);white-space:nowrap}
     .empty-state{text-align:center;padding:56px 20px;color:var(--muted)}
     .empty-state .icon{font-size:3rem;margin-bottom:12px}
     .empty-state p{font-size:.85rem;line-height:1.6}
@@ -291,12 +296,36 @@
       <button class="tool-btn btn btn-outline-light" onclick="exportTours()">⬇️ Export JSON</button>
       <button class="tool-btn btn btn-outline-light" onclick="exportToursCsv()">📄 Export CSV</button>
       <button class="tool-btn btn btn-primary" onclick="triggerImportTours()">⬆️ Import JSON</button>
+      <button class="tool-btn btn btn-outline-light" onclick="openFolderView()">📁 Dossier tournées</button>
       <button class="tool-btn btn btn-outline-light" onclick="openOnboarding()">🧭 Guide</button>
     </div>
     <input type="file" id="import-file" accept="application/json,.json" style="display:none" onchange="importToursFromFile(event)">
     <div id="tours-list"></div>
   </div>
   <button class="fab" onclick="newTour()">+</button>
+</div>
+
+<!-- FOLDER VIEW -->
+<div id="folder-view" class="view">
+  <div class="editor-header">
+    <button class="btn-back" onclick="showView('home')">←</button>
+    <div style="flex:1;font-family:'Outfit',sans-serif;font-size:1.05rem;font-weight:800">📁 Dossier des tournées</div>
+    <button class="btn-save btn btn-primary" onclick="chooseToursFolder()">Choisir</button>
+  </div>
+  <div class="home-body">
+    <div class="field-group">
+      <div class="field-label">Archivage automatique</div>
+      <div id="folder-status" style="font-size:.85rem;color:var(--muted);line-height:1.55">Aucun dossier relié.</div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="tool-btn btn btn-primary" style="flex:0 0 auto" onclick="chooseToursFolder()">📂 Choisir un dossier</button>
+        <button class="tool-btn btn btn-outline-light" style="flex:0 0 auto" onclick="refreshFolderView()">🔄 Actualiser</button>
+      </div>
+      <div style="margin-top:10px;font-size:.76rem;color:var(--muted)">Les tournées sauvegardées seront aussi écrites en JSON dans ce dossier quand le navigateur autorise l'accès.</div>
+    </div>
+
+    <div class="section-label">Fichiers du dossier</div>
+    <div id="folder-files"></div>
+  </div>
 </div>
 
 <!-- EDITOR -->
@@ -493,9 +522,13 @@ const S = { tours:[], current:null, map:null, markers:[], polyline:null, addMode
 const STORAGE_KEY = 'mt_v2';
 const THEME_KEY = 'rp_theme_v1';
 const ONBOARD_KEY = 'rp_onboard_done_v1';
+const FS_DB = 'routepilot_fs_v1';
+const FS_STORE = 'kv';
+const FS_DIR_KEY = 'tour_dir_handle';
 const DEFAULT_OPTIONS = { returnToStart:false, avoidMotorways:false };
 let mapSearchTimer = null;
-let listSearchTimer = null;
+const listSearchTimers = { departure:null, stop:null };
+let toursDirHandle = null;
 
 let mapWheelPanBound = false;
 let pendingImportMode = 'merge';
@@ -518,6 +551,192 @@ function loadTours() {
   }
 }
 function saveTours() { localStorage.setItem(STORAGE_KEY, JSON.stringify(S.tours)); }
+
+// ═══════════ FOLDER ACCESS ═══════════
+function supportsFolderAccess() {
+  return typeof window.showDirectoryPicker === 'function' && typeof indexedDB !== 'undefined';
+}
+function openFsDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(FS_DB, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(FS_STORE)) db.createObjectStore(FS_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('DB error'));
+  });
+}
+async function fsSet(key, value) {
+  const db = await openFsDb();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(FS_STORE, 'readwrite');
+    tx.objectStore(FS_STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('Write error'));
+  });
+}
+async function fsGet(key) {
+  const db = await openFsDb();
+  return await new Promise((resolve, reject) => {
+    const tx = db.transaction(FS_STORE, 'readonly');
+    const req = tx.objectStore(FS_STORE).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('Read error'));
+  });
+}
+async function ensureFolderPermission(mode = 'read') {
+  if (!toursDirHandle) return false;
+  const state = await toursDirHandle.queryPermission({ mode });
+  if (state === 'granted') return true;
+  const granted = await toursDirHandle.requestPermission({ mode });
+  return granted === 'granted';
+}
+function formatBytes(bytes) {
+  const n = Number(bytes) || 0;
+  if (n < 1024) return `${n} o`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} Ko`;
+  return `${(n / (1024 * 1024)).toFixed(1)} Mo`;
+}
+function sanitizeFileName(value) {
+  return String(value || 'tournee')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 56) || 'tournee';
+}
+function buildTourFileName(tour) {
+  return `${sanitizeFileName(tour?.name || 'tournee')}-${String(tour?.id || Date.now())}.json`;
+}
+async function saveTourToFolder(tour) {
+  if (!toursDirHandle) return false;
+  if (!(await ensureFolderPermission('readwrite'))) return false;
+  const fh = await toursDirHandle.getFileHandle(buildTourFileName(tour), { create: true });
+  const w = await fh.createWritable();
+  await w.write(JSON.stringify({ version: 1, savedAt: new Date().toISOString(), tour }, null, 2));
+  await w.close();
+  return true;
+}
+async function refreshFolderView() {
+  const statusEl = document.getElementById('folder-status');
+  const filesEl = document.getElementById('folder-files');
+  if (!statusEl || !filesEl) return;
+
+  if (!supportsFolderAccess()) {
+    statusEl.textContent = 'Votre navigateur ne permet pas l\'accès direct aux dossiers. Utilisez Export JSON/CSV pour conserver vos tournées.';
+    filesEl.innerHTML = '<div class="empty-state"><p>Accès dossier non disponible sur ce navigateur.</p></div>';
+    return;
+  }
+  if (!toursDirHandle) {
+    statusEl.textContent = 'Aucun dossier relié. Cliquez sur "Choisir un dossier" pour activer l\'archivage.';
+    filesEl.innerHTML = '<div class="empty-state"><p>Aucun fichier à afficher.</p></div>';
+    return;
+  }
+  if (!(await ensureFolderPermission('read'))) {
+    statusEl.textContent = 'Permission refusée. Re-sélectionnez le dossier pour continuer.';
+    filesEl.innerHTML = '<div class="empty-state"><p>Impossible de lire le dossier.</p></div>';
+    return;
+  }
+
+  const files = [];
+  try {
+    for await (const [name, entry] of toursDirHandle.entries()) {
+      if (entry.kind !== 'file' || !name.toLowerCase().endsWith('.json')) continue;
+      const file = await entry.getFile();
+      files.push({ name, size: file.size, updatedAt: file.lastModified || 0 });
+    }
+  } catch (e) {
+    statusEl.textContent = 'Erreur de lecture du dossier.';
+    filesEl.innerHTML = '<div class="empty-state"><p>Lecture impossible pour le moment.</p></div>';
+    return;
+  }
+
+  files.sort((a, b) => b.updatedAt - a.updatedAt);
+  statusEl.textContent = `Dossier relié. ${files.length} fichier(s) JSON détecté(s).`;
+  if (!files.length) {
+    filesEl.innerHTML = '<div class="empty-state"><p>Pas encore de tournée archivée dans ce dossier.</p></div>';
+    return;
+  }
+
+  filesEl.innerHTML = files.map((f) => {
+    const date = f.updatedAt ? new Date(f.updatedAt).toLocaleString('fr-FR') : '-';
+    return `
+      <div class="folder-file">
+        <div class="folder-file-main">
+          <div class="folder-file-name">${esc(f.name)}</div>
+          <div class="folder-file-meta">${formatBytes(f.size)} · ${esc(date)}</div>
+        </div>
+        <button class="folder-file-btn" onclick="importTourFromFolder('${encodeURIComponent(f.name)}')">Importer</button>
+      </div>`;
+  }).join('');
+}
+async function chooseToursFolder() {
+  if (!supportsFolderAccess()) {
+    showToast('⚠️ Accès dossier non supporté par ce navigateur');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    const granted = await handle.requestPermission({ mode: 'readwrite' });
+    if (granted !== 'granted') {
+      showToast('⚠️ Permission refusée');
+      return;
+    }
+    toursDirHandle = handle;
+    await fsSet(FS_DIR_KEY, handle);
+    showToast('✅ Dossier relié pour les tournées');
+    await refreshFolderView();
+  } catch (e) {
+    if (e && e.name !== 'AbortError') showToast('❌ Impossible de sélectionner le dossier');
+  }
+}
+async function initToursFolder() {
+  if (!supportsFolderAccess()) return;
+  try {
+    const handle = await fsGet(FS_DIR_KEY);
+    if (!handle) return;
+    toursDirHandle = handle;
+  } catch (e) {
+    toursDirHandle = null;
+  }
+}
+function openFolderView() {
+  showView('folder');
+  refreshFolderView();
+}
+async function importTourFromFolder(fileNameEncoded) {
+  if (!toursDirHandle) {
+    showToast('⚠️ Aucun dossier relié');
+    return;
+  }
+  try {
+    const fileName = decodeURIComponent(fileNameEncoded || '');
+    if (!(await ensureFolderPermission('read'))) {
+      showToast('⚠️ Permission de lecture refusée');
+      return;
+    }
+    const fh = await toursDirHandle.getFileHandle(fileName);
+    const file = await fh.getFile();
+    const text = await file.text();
+    const raw = JSON.parse(text);
+    const src = raw?.tour && typeof raw.tour === 'object' ? raw.tour : raw;
+    const normalized = normalizeImportedTour(src, 0);
+    if (!normalized) {
+      showToast('⚠️ Fichier invalide');
+      return;
+    }
+    const exists = S.tours.some(t => t.id === normalized.id);
+    if (exists) normalized.id = Date.now() + Math.random();
+    S.tours.unshift(normalized);
+    saveTours();
+    renderHomeList();
+    showToast('✅ Tournée importée depuis le dossier');
+  } catch (e) {
+    showToast('❌ Impossible de lire ce fichier');
+  }
+}
 
 // ═══════════ METRICS ═══════════
 function formatKm(km, decimals = 1) {
@@ -768,18 +987,157 @@ function pickDisplayName(entry, fallback = 'Lieu') {
   return entry.name || entry.town || entry.village || entry.city || fallback;
 }
 
-async function geocode(city) {
-  const q = encodeURIComponent(`${city}, France`);
-  const url = `${GEO_BASE}/search?format=jsonv2&limit=1&countrycodes=fr&accept-language=fr&q=${q}`;
+function normalizeForSearch(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[’']/g, ' ')
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildQueryVariants(value) {
+  const base = String(value || '').trim();
+  if (!base) return [];
+
+  const variants = [];
+  const seen = new Set();
+  const add = (v) => {
+    const x = String(v || '').replace(/\s+/g, ' ').trim();
+    if (!x || x.length < 2) return;
+    const key = x.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    variants.push(x);
+  };
+
+  add(base);
+  add(base.replace(/[’]/g, "'"));
+  add(base.replace(/-/g, ' '));
+  add(base.replace(/[’']/g, ' '));
+
+  const normalized = normalizeForSearch(base);
+  if (normalized) add(normalized);
+
+  return variants.slice(0, 5);
+}
+
+function mapNominatimResults(data, fallbackQuery = 'Lieu') {
+  if (!Array.isArray(data)) return [];
+  return data
+    .map(x => ({
+      name: pickDisplayName(x, fallbackQuery),
+      label: String(x.display_name || x.name || fallbackQuery),
+      lat: Number(x.lat),
+      lng: Number(x.lon),
+      importance: Number(x.importance) || 0,
+      type: String(x.type || ''),
+      className: String(x.class || '')
+    }))
+    .filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lng));
+}
+
+function dedupeSuggestions(items) {
+  const out = [];
+  const seen = new Set();
+  items.forEach((it) => {
+    const key = `${it.lat.toFixed(5)}|${it.lng.toFixed(5)}|${normalizeForSearch(it.name)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(it);
+  });
+  return out;
+}
+
+function scoreSuggestion(query, item) {
+  const q = normalizeForSearch(query);
+  const name = normalizeForSearch(item?.name);
+  const label = normalizeForSearch(item?.label);
+  if (!q || (!name && !label)) return -1;
+
+  let score = (Number(item?.importance) || 0) * 20;
+  if (name === q) score += 200;
+  if (label === q) score += 170;
+  if (name.startsWith(q)) score += 120;
+  if (label.startsWith(q)) score += 90;
+  if (name.includes(q)) score += 65;
+  if (label.includes(q)) score += 45;
+
+  const cityLike = /city|town|village|municipality|hamlet|administrative/.test(String(item?.type || ''));
+  if (cityLike) score += 15;
+
+  const qTokens = q.split(' ').filter(Boolean);
+  if (qTokens.length) {
+    const overlap = qTokens.filter(t => name.includes(t) || label.includes(t)).length;
+    score += overlap * 10;
+  }
+  return score;
+}
+
+function pickBestSuggestion(query, items) {
+  if (!Array.isArray(items) || !items.length) return null;
+  let best = null;
+  items.forEach((item) => {
+    const score = scoreSuggestion(query, item);
+    if (!best || score > best.score) best = { item, score };
+  });
+  return best;
+}
+
+function findSuggestionMatch(inputValue, items) {
+  if (!Array.isArray(items) || !items.length) return null;
+  const q = normalizeForSearch(inputValue);
+  if (!q) return null;
+  const exact = items.find(x => normalizeForSearch(x.label) === q || normalizeForSearch(x.name) === q);
+  if (exact) return exact;
+  const best = pickBestSuggestion(inputValue, items);
+  if (!best || best.score < 60) return null;
+  return best.item;
+}
+
+async function nominatimSearch(query, options = {}) {
+  const params = new URLSearchParams({
+    format: 'jsonv2',
+    addressdetails: '1',
+    limit: String(options.limit || 7),
+    accept-language: 'fr',
+    q: query
+  });
+  if (options.countrycodes) params.set('countrycodes', options.countrycodes);
+  const url = `${GEO_BASE}/search?${params.toString()}`;
   const data = await fetchJson(url);
-  if (!Array.isArray(data) || !data.length) return null;
+  return mapNominatimResults(data, query);
+}
 
-  const p = data[0];
-  const lat = Number(p.lat);
-  const lng = Number(p.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+async function geocode(city) {
+  const variants = buildQueryVariants(city);
+  if (!variants.length) return null;
 
-  return { name: pickDisplayName(p, city), lat, lng };
+  const strategies = [
+    { countrycodes: 'fr', limit: 8 },
+    { countrycodes: 'fr,be,ch,lu,mc', limit: 8 },
+    { limit: 8 }
+  ];
+
+  let pool = [];
+  for (const strategy of strategies) {
+    for (const v of variants) {
+      const results = await nominatimSearch(v, strategy);
+      if (results.length) pool = dedupeSuggestions([...pool, ...results]);
+
+      const best = pickBestSuggestion(city, pool);
+      if (best && best.score >= 90) {
+        return { name: best.item.name, lat: best.item.lat, lng: best.item.lng };
+      }
+    }
+  }
+
+  const fallback = pickBestSuggestion(city, pool);
+  if (!fallback || fallback.score < 40) return null;
+  return { name: fallback.item.name, lat: fallback.item.lat, lng: fallback.item.lng };
 }
 
 async function reverseGeocode(lat, lng) {
@@ -793,18 +1151,34 @@ async function reverseGeocode(lat, lng) {
 }
 
 async function searchAddressSuggestions(query) {
-  const q = encodeURIComponent(query);
-  const url = `${GEO_BASE}/search?format=jsonv2&addressdetails=1&limit=7&countrycodes=fr&accept-language=fr&q=${q}`;
-  const data = await fetchJson(url);
-  if (!Array.isArray(data)) return [];
-  return data
-    .map(x => ({
-      name: pickDisplayName(x, query),
-      label: String(x.display_name || x.name || query),
-      lat: Number(x.lat),
-      lng: Number(x.lon)
-    }))
-    .filter(x => Number.isFinite(x.lat) && Number.isFinite(x.lng));
+  const variants = buildQueryVariants(query);
+  if (!variants.length) return [];
+
+  let merged = [];
+  const primary = await nominatimSearch(variants[0], { limit: 7, countrycodes: 'fr' });
+  merged = dedupeSuggestions([...merged, ...primary]);
+
+  if (!merged.length) {
+    for (let i = 1; i < variants.length; i++) {
+      const frTry = await nominatimSearch(variants[i], { limit: 7, countrycodes: 'fr' });
+      merged = dedupeSuggestions([...merged, ...frTry]);
+      if (merged.length) break;
+    }
+  }
+
+  if (!merged.length) {
+    for (const variant of variants) {
+      const globalTry = await nominatimSearch(variant, { limit: 7 });
+      merged = dedupeSuggestions([...merged, ...globalTry]);
+      if (merged.length >= 7) break;
+    }
+  }
+
+  return merged
+    .map(item => ({ item, score: scoreSuggestion(query, item) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 7)
+    .map(x => x.item);
 }
 
 function clearMapSearchSuggestions() {
@@ -881,8 +1255,8 @@ async function onListSearchInput(kind) {
   const q = input.value.trim();
   if (q.length < 3) { clearListSuggestions(kind); return; }
 
-  clearTimeout(listSearchTimer);
-  listSearchTimer = setTimeout(async () => {
+  clearTimeout(listSearchTimers[kind]);
+  listSearchTimers[kind] = setTimeout(async () => {
     const results = await searchAddressSuggestions(q);
     if (input.value.trim() !== q) return;
     S.listSearchResults[kind] = results;
@@ -1015,7 +1389,7 @@ function switchTab(tab) {
 async function setDeparture() {
   const val=document.getElementById('departure-input').value.trim();
   if(!val){ showToast('⚠️ Entrez un nom de ville'); return; }
-  const picked = (S.listSearchResults.departure || []).find(x => x.label === val || x.name === val);
+  const picked = findSuggestionMatch(val, S.listSearchResults.departure || []);
   if (picked) { setDepartureFromLoc(picked); return; }
   showLoading('Recherche de '+val+'…');
   const loc=await geocode(val); hideLoading();
@@ -1040,7 +1414,7 @@ function renderDepDisplay() {
 async function addStopBySearch() {
   const val=document.getElementById('stop-input').value.trim();
   if(!val){ showToast('⚠️ Entrez un nom de ville'); return; }
-  const picked = (S.listSearchResults.stop || []).find(x => x.label === val || x.name === val);
+  const picked = findSuggestionMatch(val, S.listSearchResults.stop || []);
   if (picked) {
     addStop(picked);
     document.getElementById('stop-input').value='';
@@ -1166,7 +1540,7 @@ async function doOptimize() {
 }
 
 // ═══════════ SAVE / DELETE ═══════════
-function saveTour() {
+async function saveTour() {
   const name=document.getElementById('tour-name-input').value.trim();
   if(!name){ showToast('⚠️ Donnez un nom à la tournée'); return; }
   if(!S.current.departure){ showToast('⚠️ Définissez un point de départ'); return; }
@@ -1175,7 +1549,15 @@ function saveTour() {
   const idx=S.tours.findIndex(t=>t.id===S.current.id);
   const copy=JSON.parse(JSON.stringify(S.current));
   if(idx>=0) S.tours[idx]=copy; else S.tours.unshift(copy);
-  saveTours(); showToast('💾 Tournée sauvegardée !');
+  saveTours();
+  let archived = false;
+  try {
+    archived = await saveTourToFolder(copy);
+  } catch (e) {
+    archived = false;
+  }
+  if (archived) showToast('💾 Tournée sauvegardée et archivée');
+  else showToast('💾 Tournée sauvegardée !');
 }
 function deleteTour(id,e) {
   e.stopPropagation();
@@ -1488,6 +1870,7 @@ document.addEventListener('click', (e) => {
 // ═══════════ BOOT ═══════════
 loadTheme();
 loadTours();
+initToursFolder();
 renderHomeList();
 bootSplash();
 maybeShowOnboarding();
