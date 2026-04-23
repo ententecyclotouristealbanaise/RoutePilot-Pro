@@ -139,7 +139,9 @@ const App = {
   polyline: null,
   addMode: false,
   deferredInstallPrompt: null,
-  searchTimers: { dep: null, stop: null, map: null }
+  searchTimers: { dep: null, stop: null, map: null },
+  suggestions: { departure: [], stop: [], map: [] },
+  pendingMapPick: null
 };
 
 function esc(value) {
@@ -289,6 +291,7 @@ function renderEditor() {
   document.getElementById("departure-preview").textContent = tour.departure ? tour.departure.name : "Depart non defini";
   document.getElementById("opt-return").checked = !!tour.options.returnToStart;
   document.getElementById("opt-avoid").checked = !!tour.options.avoidMotorways;
+  syncReturnDepotButton();
 
   const stats = computeStats(tour);
   document.getElementById("stats-distance").textContent = formatKm(stats.distance);
@@ -437,16 +440,37 @@ function buildSuggest(containerId, items, onPick) {
   root.classList.remove("d-none");
 }
 
-function bindSearchInput(inputId, suggestId, callback) {
+function bindSearchInput(inputId, suggestId, stateKey, callback) {
   const input = document.getElementById(inputId);
   input.addEventListener("input", () => {
     const token = inputId;
     clearTimeout(App.searchTimers[token]);
     App.searchTimers[token] = setTimeout(async () => {
       const rows = await searchAddress(input.value);
+      App.suggestions[stateKey] = rows;
       buildSuggest(suggestId, rows, (picked) => callback(picked, input));
     }, 220);
   });
+}
+
+function setDepartureFromLocation(loc) {
+  const tour = getSelectedTour();
+  if (!tour) return;
+  tour.departure = new StopModel(loc);
+  tour.touch();
+  App.store.upsert(tour);
+  renderEditor();
+  updateMap();
+}
+
+function addStopFromLocation(loc) {
+  const tour = getSelectedTour();
+  if (!tour) return;
+  tour.stops.push(new StopModel(loc));
+  tour.touch();
+  App.store.upsert(tour);
+  renderEditor();
+  updateMap();
 }
 
 function saveTourName() {
@@ -480,12 +504,8 @@ async function setDepartureByInput() {
     return;
   }
   const p = rows[0];
-  tour.departure = new StopModel(p);
-  tour.touch();
-  App.store.upsert(tour);
+  setDepartureFromLocation(p);
   document.getElementById("departure-input").value = "";
-  renderEditor();
-  updateMap();
 }
 
 async function addStopByInput() {
@@ -503,12 +523,36 @@ async function addStopByInput() {
     showToast("Etape introuvable");
     return;
   }
-  tour.stops.push(new StopModel(rows[0]));
-  tour.touch();
-  App.store.upsert(tour);
+  addStopFromLocation(rows[0]);
   document.getElementById("stop-input").value = "";
-  renderEditor();
-  updateMap();
+}
+
+function addFromMapSearch() {
+  const tour = getSelectedTour();
+  if (!tour) return;
+  const target = getMapTargetMode();
+
+  const fallback = App.suggestions.map[0] || null;
+  const picked = App.pendingMapPick || fallback;
+  if (!picked) {
+    showToast("Recherche une adresse sur la carte d'abord");
+    return;
+  }
+
+  if (target === "departure") {
+    setDepartureFromLocation(picked);
+    showToast("Depart defini depuis le mode carte");
+  } else {
+    addStopFromLocation(picked);
+    showToast("Etape ajoutee depuis le mode carte");
+  }
+
+  const input = document.getElementById("map-search-input");
+  if (input) input.value = "";
+  App.pendingMapPick = null;
+  App.suggestions.map = [];
+  const suggest = document.getElementById("map-search-suggest");
+  if (suggest) suggest.classList.add("d-none");
 }
 
 function optimizeRoute() {
@@ -584,8 +628,37 @@ function updateOptions() {
   tour.options.avoidMotorways = document.getElementById("opt-avoid").checked;
   tour.touch();
   App.store.upsert(tour);
+  syncReturnDepotButton();
   renderEditor();
   updateMap();
+}
+
+function syncReturnDepotButton() {
+  const btn = document.getElementById("map-return-depot-btn");
+  const tour = getSelectedTour();
+  if (!btn || !tour) return;
+  const on = !!tour.options.returnToStart;
+  btn.classList.toggle("btn-primary", on);
+  btn.classList.toggle("btn-outline-secondary", !on);
+  btn.textContent = `Retour depot: ${on ? "ON" : "OFF"}`;
+}
+
+function toggleReturnDepotFromMap() {
+  const tour = getSelectedTour();
+  if (!tour) return;
+  tour.options.returnToStart = !tour.options.returnToStart;
+  const sw = document.getElementById("opt-return");
+  if (sw) sw.checked = tour.options.returnToStart;
+  tour.touch();
+  App.store.upsert(tour);
+  syncReturnDepotButton();
+  updateMap();
+  showToast(tour.options.returnToStart ? "Retour au depot active" : "Retour au depot desactive");
+}
+
+function getMapTargetMode() {
+  const dep = document.getElementById("map-target-departure");
+  return dep?.checked ? "departure" : "stop";
 }
 
 function initMap() {
@@ -831,6 +904,7 @@ function bindMainEvents() {
 
   document.getElementById("map-add-mode-btn").addEventListener("click", toggleAddMode);
   document.getElementById("map-fit-btn").addEventListener("click", fitMap);
+  document.getElementById("map-return-depot-btn").addEventListener("click", toggleReturnDepotFromMap);
 
   document.getElementById("tab-map").addEventListener("shown.bs.tab", () => {
     initMap();
@@ -859,37 +933,39 @@ function bindMainEvents() {
     event.preventDefault();
     addStopByInput();
   });
+
+  document.getElementById("map-search-input").addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    addFromMapSearch();
+  });
 }
 
 function bindSearches() {
-  bindSearchInput("departure-input", "departure-suggest", (picked, input) => {
+  bindSearchInput("departure-input", "departure-suggest", "departure", (picked, input) => {
     input.value = picked.name;
-    const tour = getSelectedTour();
-    if (!tour) return;
-    tour.departure = new StopModel(picked);
-    tour.touch();
-    App.store.upsert(tour);
+    setDepartureFromLocation(picked);
     input.value = "";
-    renderEditor();
-    updateMap();
   });
 
-  bindSearchInput("stop-input", "stop-suggest", (picked, input) => {
+  bindSearchInput("stop-input", "stop-suggest", "stop", (picked, input) => {
     input.value = picked.name;
-    const tour = getSelectedTour();
-    if (!tour) return;
-    tour.stops.push(new StopModel(picked));
-    tour.touch();
-    App.store.upsert(tour);
+    addStopFromLocation(picked);
     input.value = "";
-    renderEditor();
-    updateMap();
   });
 
-  bindSearchInput("map-search-input", "map-search-suggest", (picked, input) => {
+  bindSearchInput("map-search-input", "map-search-suggest", "map", (picked, input) => {
     input.value = "";
+    App.pendingMapPick = picked;
     initMap();
     App.map.setView([picked.lat, picked.lng], 13);
+    if (getMapTargetMode() === "departure") {
+      setDepartureFromLocation(picked);
+      showToast("Depart defini depuis la recherche carte");
+    } else {
+      addStopFromLocation(picked);
+      showToast("Etape ajoutee depuis la recherche carte");
+    }
   });
 
   document.addEventListener("click", (e) => {

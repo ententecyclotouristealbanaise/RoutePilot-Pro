@@ -94,10 +94,10 @@
 
             <ul class="nav nav-tabs mb-3" id="editor-tabs" role="tablist">
               <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-list" data-bs-toggle="tab" data-bs-target="#pane-list" type="button" role="tab">Liste</button>
+                <button class="nav-link active" id="tab-list" data-bs-toggle="tab" data-bs-target="#pane-list" type="button" role="tab">Mode texte</button>
               </li>
               <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-map" data-bs-toggle="tab" data-bs-target="#pane-map" type="button" role="tab">Carte</button>
+                <button class="nav-link" id="tab-map" data-bs-toggle="tab" data-bs-target="#pane-map" type="button" role="tab">Mode carte</button>
               </li>
             </ul>
 
@@ -148,10 +148,21 @@
                   <input id="map-search-input" class="form-control" type="text" placeholder="Rechercher un lieu sur la carte">
                   <div id="map-search-suggest" class="search-suggest d-none" role="listbox" aria-label="Suggestions carte"></div>
                 </div>
+                <div class="d-flex flex-wrap gap-2 mb-2 align-items-center">
+                  <div class="btn-group btn-group-sm" role="group" aria-label="Cible recherche carte">
+                    <input type="radio" class="btn-check" name="map-target" id="map-target-stop" value="stop" autocomplete="off" checked>
+                    <label class="btn btn-outline-primary" for="map-target-stop">Etape</label>
+
+                    <input type="radio" class="btn-check" name="map-target" id="map-target-departure" value="departure" autocomplete="off">
+                    <label class="btn btn-outline-primary" for="map-target-departure">Depart</label>
+                  </div>
+                  <small class="text-secondary">Clique sur une suggestion pour l'ajouter directement</small>
+                </div>
                 <div class="map-wrap">
                   <div id="map" role="application" aria-label="Carte interactive de la tournee"></div>
                   <div class="map-tools">
                     <button id="map-add-mode-btn" class="btn btn-outline-primary" type="button">Mode ajout</button>
+                    <button id="map-return-depot-btn" class="btn btn-outline-secondary" type="button">Retour depot: OFF</button>
                     <button id="map-fit-btn" class="btn btn-light" type="button">Tout voir</button>
                   </div>
                 </div>
