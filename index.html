@@ -157,7 +157,7 @@
     .sk + .sk{margin-top:8px}
     @keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
 
-    .splash-screen{position:fixed;inset:0;z-index:1300;display:flex;align-items:center;justify-content:center;background:radial-gradient(900px 500px at 50% -10%,#2d4f86 0%,#091223 60%);animation:splashAutoHide .45s ease 6s forwards}
+    .splash-screen{position:fixed;inset:0;z-index:1300;display:flex;align-items:center;justify-content:center;background:radial-gradient(900px 500px at 50% -10%,#2d4f86 0%,#091223 60%);animation:splashAutoHide .45s ease 6s forwards;pointer-events:none}
     .splash-inner{display:flex;flex-direction:column;align-items:center;gap:10px;color:#e7f0ff}
     .splash-logo{width:72px;height:72px;filter:drop-shadow(0 10px 24px rgba(13,110,253,.45));animation:splashFloat 1.4s ease-in-out infinite}
     .splash-title{font-family:'Outfit',sans-serif;font-size:1.2rem;font-weight:800;letter-spacing:.02em}
@@ -1888,14 +1888,23 @@ function forceHideSplash(){
   el.classList.add('hide');
   setTimeout(()=>{ el.style.display='none'; },420);
 }
+function clearBootBlockers(){
+  const blockers = ['loading-overlay','skeleton-overlay','confirm-popup','share-popup','import-mode-popup','import-preview-popup','route-recap-popup'];
+  blockers.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('show');
+  });
+}
 function registerGlobalBootGuards(){
   window.addEventListener('error', () => {
     fatalBootError = true;
     forceHideSplash();
+    clearBootBlockers();
   });
   window.addEventListener('unhandledrejection', () => {
     fatalBootError = true;
     forceHideSplash();
+    clearBootBlockers();
   });
 }
 function registerServiceWorker() {
@@ -1915,6 +1924,7 @@ document.addEventListener('click', (e) => {
 
 // ═══════════ BOOT ═══════════
 setTimeout(forceHideSplash, 3200);
+setTimeout(clearBootBlockers, 3600);
 registerGlobalBootGuards();
 try {
   loadTheme();
@@ -1929,6 +1939,7 @@ try {
   bootSplash();
   initToursFolder().catch(() => {});
   registerServiceWorker();
+  clearBootBlockers();
   if (fatalBootError) forceHideSplash();
 }
 </script>
